@@ -9,12 +9,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.vimal.security.v3.configs.PropertiesConfig;
+import org.vimal.security.v3.dtos.SystemUserDto;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
 import org.vimal.security.v3.enums.SystemPermissions;
 import org.vimal.security.v3.enums.SystemRoles;
 import org.vimal.security.v3.models.PermissionModel;
 import org.vimal.security.v3.models.RoleModel;
+import org.vimal.security.v3.models.UserModel;
 import org.vimal.security.v3.repos.PermissionRepo;
 import org.vimal.security.v3.repos.RoleRepo;
 import org.vimal.security.v3.repos.UserRepo;
@@ -32,6 +34,7 @@ import java.util.Set;
 
 import static org.vimal.security.v3.enums.SystemPermissions.*;
 import static org.vimal.security.v3.enums.SystemRoles.*;
+import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
 
 @Slf4j
 @Component
@@ -52,6 +55,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         log.info("Initializing system permissions, roles, and default users.");
         initializeSystemPermissionsIfAbsent();
         initializeSystemRolesIfAbsent();
+        initializeDefaultUsersIfAbsent();
         log.info("System permissions, roles, and default users initialized successfully.");
     }
 
@@ -129,5 +133,33 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         rolePermissionsMap.put(ROLE_MANAGE_USERS.name(), Set.of(CAN_CREATE_USER.name(), CAN_READ_USER.name(), CAN_UPDATE_USER.name(), CAN_DELETE_USER.name()));
         rolePermissionsMap.put(ROLE_MANAGE_ROLES.name(), Set.of(CAN_CREATE_ROLE.name(), CAN_READ_ROLE.name(), CAN_UPDATE_ROLE.name(), CAN_DELETE_ROLE.name()));
         rolePermissionsMap.put(ROLE_MANAGE_PERMISSIONS.name(), Set.of(CAN_READ_PERMISSION.name()));
+    }
+
+    private void initializeDefaultUsersIfAbsent() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Set<SystemUserDto> systemUsers = Set.of(new SystemUserDto(propertiesConfig.getGodUserUsername(), propertiesConfig.getGodUserPassword(), propertiesConfig.getGodUserEmail(), "God", Set.of(SystemRoles.ROLE_GOD.name())), new SystemUserDto(propertiesConfig.getGlobalAdminUserUsername(), propertiesConfig.getGlobalAdminUserPassword(), propertiesConfig.getGlobalAdminUserEmail(), "Global Admin", Set.of(SystemRoles.ROLE_GLOBAL_ADMIN.name())));
+        Set<UserModel> existingUsers = userRepo.findByUsernameIn(Set.of(propertiesConfig.getGodUserUsername(), propertiesConfig.getGlobalAdminUserUsername()));
+        Set<String> existingUsersUsernames = new HashSet<>();
+        for (UserModel user : existingUsers) {
+            existingUsersUsernames.add(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class));
+        }
+        Set<UserModel> newUsers = new HashSet<>();
+        for (SystemUserDto user : systemUsers) {
+            if (!existingUsersUsernames.contains(user.getUsername())) {
+                newUsers.add(UserModel.builder()
+                        .username(genericAesStaticEncryptorDecryptor.encrypt(user.getUsername()))
+                        .email(genericAesStaticEncryptorDecryptor.encrypt(user.getEmail()))
+                        .realEmail(genericAesStaticEncryptorDecryptor.encrypt(normalizeEmail(user.getEmail())))
+                        .firstName(user.getFirstName())
+                        .password(passwordEncoder.encode(user.getPassword()))
+                        .roles(new HashSet<>(roleRepo.findAllById(user.getRoles())))
+                        .emailVerified(true)
+                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
+                        .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
+                        .build());
+            }
+        }
+        if (!newUsers.isEmpty()) {
+            userRepo.saveAll(newUsers);
+        }
     }
 }
