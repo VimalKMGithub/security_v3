@@ -1,6 +1,5 @@
 package org.vimal.security.v3.models;
 
-import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Cache;
