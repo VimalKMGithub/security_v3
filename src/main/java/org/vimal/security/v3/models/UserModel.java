@@ -5,6 +5,7 @@ import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Cache;
 import org.hibernate.annotations.CacheConcurrencyStrategy;
+import org.vimal.security.v3.enums.MfaType;
 
 import java.time.Instant;
 import java.util.Set;
@@ -197,5 +198,26 @@ public class UserModel {
         if (this.failedMfaAttempts >= UPPER_MAX_FAILED_MFA_ATTEMPTS) {
             this.accountEnabled = false;
         }
+    }
+
+    @ElementCollection(targetClass = MfaType.class, fetch = FetchType.EAGER)
+    @CollectionTable(name = "user_mfa_methods",
+            joinColumns = @JoinColumn(name = "user_id"))
+    @Column(name = "mfa_type", nullable = false)
+    @Enumerated(EnumType.STRING)
+    private Set<MfaType> mfaMethods;
+
+    public void addMfaMethod(MfaType method) {
+        this.mfaMethods.add(method);
+        this.mfaEnabled = true;
+    }
+
+    public void removeMfaMethod(MfaType method) {
+        this.mfaMethods.remove(method);
+        this.mfaEnabled = !this.mfaMethods.isEmpty();
+    }
+
+    public boolean hasMfaMethod(MfaType method) {
+        return this.mfaMethods.contains(method);
     }
 }
