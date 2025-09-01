@@ -1,5 +1,6 @@
 package org.vimal.security.v3.models;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.Cache;
@@ -63,5 +64,38 @@ public class RoleModel {
     public void recordUpdation(String updator) {
         this.updatedAt = Instant.now();
         this.updatedBy = updator;
+    }
+
+    @JsonIgnore
+    @Builder.Default
+    @Column(name = "role_deleted", nullable = false)
+    private boolean roleDeleted = false;
+
+    @JsonIgnore
+    @Column(name = "role_deleted_at")
+    private Instant roleDeletedAt;
+
+    @JsonIgnore
+    @Column(name = "role_deleted_by", length = 512)
+    private String roleDeletedBy;
+
+    @JsonIgnore
+    @Column(name = "role_recovered_at")
+    private Instant roleRecoveredAt;
+
+    @JsonIgnore
+    @Column(name = "role_recovered_by", length = 512)
+    private String roleRecoveredBy;
+
+    public void recordAccountDeletion(boolean isDeleted, String agentUsername) {
+        if (isDeleted) {
+            this.roleDeleted = true;
+            this.roleDeletedAt = Instant.now();
+            this.roleDeletedBy = agentUsername;
+        } else {
+            this.roleDeleted = false;
+            this.roleRecoveredAt = Instant.now();
+            this.roleRecoveredBy = agentUsername;
+        }
     }
 }
