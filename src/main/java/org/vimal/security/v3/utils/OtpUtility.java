@@ -4,7 +4,10 @@ import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 
 import java.security.SecureRandom;
 
-public class OtpUtility {
+public final class OtpUtility {
+    private OtpUtility() {
+    }
+
     public static final SecureRandom SECURE_RANDOM = new SecureRandom();
     public static final String DIGITS = "0123456789";
     public static final int DEFAULT_OTP_LENGTH = 6;

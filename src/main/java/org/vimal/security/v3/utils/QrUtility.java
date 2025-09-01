@@ -8,7 +8,10 @@ import com.google.zxing.qrcode.QRCodeWriter;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 
-public class QrUtility {
+public final class QrUtility {
+    private QrUtility() {
+    }
+
     private static final int DEFAULT_SIZE = 300;
     private static final String DEFAULT_IMAGE_FORMAT = "PNG";
 

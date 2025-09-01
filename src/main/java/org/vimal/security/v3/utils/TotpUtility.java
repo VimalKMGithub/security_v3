@@ -12,7 +12,10 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 
-public class TotpUtility {
+public final class TotpUtility {
+    private TotpUtility() {
+    }
+
     private static final TimeBasedOneTimePasswordGenerator TOTP_GENERATOR = new TimeBasedOneTimePasswordGenerator();
     private static final Base32 BASE_32 = new Base32();
     private static final ThreadLocal<KeyGenerator> KEY_GENERATOR = ThreadLocal.withInitial(() -> {

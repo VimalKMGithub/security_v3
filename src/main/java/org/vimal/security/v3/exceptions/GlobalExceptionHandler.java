@@ -11,9 +11,10 @@ import org.springframework.web.bind.MissingRequestValueException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
-import org.vimal.security.v3.utils.JsonUtility;
 
 import java.util.*;
+
+import static org.vimal.security.v3.utils.JsonUtility.toJson;
 
 @Slf4j
 @RestControllerAdvice
@@ -47,7 +48,7 @@ public class GlobalExceptionHandler {
         innerErrorData.put("exception", ex.toString());
         innerErrorData.put("stack", formatStackTrace(ex));
         errorResponse.put("innerErrorData", innerErrorData);
-        log.error("An unexpected error occurred: {}\n{}", ex.getMessage(), JsonUtility.toJson(errorResponse));
+        log.error("An unexpected error occurred: {}\n{}", ex.getMessage(), toJson(errorResponse));
         return ResponseEntity.internalServerError().body(errorResponse);
     }
 
