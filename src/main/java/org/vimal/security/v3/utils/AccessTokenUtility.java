@@ -1,6 +1,7 @@
 package org.vimal.security.v3.utils;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -53,7 +54,8 @@ public class AccessTokenUtility {
     private final RedisService redisService;
     private final GenericAesRandomConverter genericAesRandomConverter;
     private final GenericAesStaticConverter genericAesStaticConverter;
-    private final ThreadLocal<JsonWebEncryption> jwe;
+    private final ThreadLocal<JsonWebEncryption> jweEncryptor;
+    private final ThreadLocal<JsonWebEncryption> jweDecryptor;
 
     public AccessTokenUtility(PropertiesConfig propertiesConfig, UserRepo userRepo, RedisService redisService, GenericAesRandomConverter genericAesRandomConverter, GenericAesStaticConverter genericAesStaticConverter) throws NoSuchAlgorithmException {
         this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(propertiesConfig.getAccessTokenSigningSecretKey()));
@@ -62,13 +64,18 @@ public class AccessTokenUtility {
         this.redisService = redisService;
         this.genericAesRandomConverter = genericAesRandomConverter;
         this.genericAesStaticConverter = genericAesStaticConverter;
-        this.jwe = ThreadLocal.withInitial(() -> {
+        this.jweEncryptor = ThreadLocal.withInitial(() -> {
             JsonWebEncryption jwe = new JsonWebEncryption();
             jwe.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.A256KW);
             jwe.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_CBC_HMAC_SHA_512);
             jwe.setKey(encryptionKey);
             jwe.setAlgorithmConstraints(ACCESS_TOKEN_KEY_ALGORITHM_CONSTRAINTS);
             jwe.setContentEncryptionAlgorithmConstraints(ACCESS_TOKEN_ENCRYPTION_ALGORITHM_CONSTRAINTS);
+            return jwe;
+        });
+        this.jweDecryptor = ThreadLocal.withInitial(() -> {
+            JsonWebEncryption jwe = new JsonWebEncryption();
+            jwe.setKey(encryptionKey);
             return jwe;
         });
     }
@@ -114,9 +121,9 @@ public class AccessTokenUtility {
     }
 
     private String encryptToken(String jws) throws JoseException {
-        JsonWebEncryption jweLocal = jwe.get();
-        jweLocal.setPayload(jws);
-        return jweLocal.getCompactSerialization();
+        JsonWebEncryption jwe = jweEncryptor.get();
+        jwe.setPayload(jws);
+        return jwe.getCompactSerialization();
     }
 
     private UUID generateRefreshToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
@@ -143,5 +150,35 @@ public class AccessTokenUtility {
 
     private String getEncryptedRefreshTokenKey(UUID userId) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticConverter.encrypt(REFRESH_TOKEN_PREFIX + userId);
+    }
+
+    private Map<String, Object> generateAccessToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+        Map<String, Object> accessToken = new HashMap<>();
+        accessToken.put("access_token", encryptToken(signToken(buildTokenClaims(user))));
+        accessToken.put("expires_in_seconds", ACCESS_TOKEN_EXPIRES_IN_SECONDS);
+        accessToken.put("token_type", "Bearer");
+        return accessToken;
+    }
+
+    public Map<String, Object> generateTokens(UserModel user) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Map<String, Object> tokens = generateAccessToken(user);
+        tokens.put("refresh_token", generateRefreshToken(user));
+        user.recordSuccessfulLogin();
+        userRepo.save(user);
+        return tokens;
+    }
+
+    private String decryptToken(String token) throws JoseException {
+        JsonWebEncryption jwe = jweDecryptor.get();
+        jwe.setCompactSerialization(token);
+        return jwe.getPayload();
+    }
+
+    private Claims parseToken(String jws) {
+        return Jwts.parser()
+                .verifyWith(signingKey)
+                .build()
+                .parseSignedClaims(jws)
+                .getPayload();
     }
 }
