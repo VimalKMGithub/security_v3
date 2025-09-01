@@ -52,8 +52,8 @@ public class GlobalExceptionHandler {
     }
 
     private List<String> formatStackTrace(Throwable ex) {
-        var stackTrace = ex.getStackTrace();
-        var stackTraceFormatted = new ArrayList<String>(stackTrace.length);
+        StackTraceElement[] stackTrace = ex.getStackTrace();
+        List<String> stackTraceFormatted = new ArrayList<>(stackTrace.length);
         for (StackTraceElement ste : stackTrace) {
             stackTraceFormatted.add(ste.getClassName() + "." +
                     ste.getMethodName() + "(" +
