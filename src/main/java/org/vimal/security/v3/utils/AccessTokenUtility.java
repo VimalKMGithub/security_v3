@@ -16,7 +16,6 @@ import org.vimal.security.v3.configs.PropertiesConfig;
 import org.vimal.security.v3.converter.GenericAesRandomConverter;
 import org.vimal.security.v3.converter.GenericAesStaticConverter;
 import org.vimal.security.v3.enums.MfaType;
-import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 import org.vimal.security.v3.exceptions.UnauthorizedException;
 import org.vimal.security.v3.impls.UserDetailsImpl;
 import org.vimal.security.v3.models.PermissionModel;
@@ -86,7 +85,7 @@ public class AccessTokenUtility {
 
     private UUID generateAccessTokenId(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UUID accessTokenId = UUID.randomUUID();
-        redisService.save(genericAesStaticConverter.encrypt(ACCESS_TOKEN_ID_PREFIX + user.getId()), genericAesRandomConverter.encrypt(accessTokenId));
+        redisService.save(genericAesStaticConverter.encrypt(ACCESS_TOKEN_ID_PREFIX + user.getId()), genericAesRandomConverter.encrypt(accessTokenId), ACCESS_TOKEN_EXPIRES_IN_DURATION);
         return accessTokenId;
     }
 
@@ -219,5 +218,46 @@ public class AccessTokenUtility {
             authorities.add(new SimpleGrantedAuthority(authority));
         }
         return new UserDetailsImpl(user, authorities);
+    }
+
+    private String getEncryptedAccessTokenIdKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedAccessTokenIdKey(user.getId());
+    }
+
+    private String getEncryptedAccessTokenIdKey(UUID userId) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticConverter.encrypt(ACCESS_TOKEN_ID_PREFIX + userId);
+    }
+
+    public void revokeAccessToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        redisService.delete(getEncryptedAccessTokenIdKey(user));
+    }
+
+    private String getEncryptedRefreshTokenMappingKey(String encryptedRefreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticConverter.encrypt(REFRESH_TOKEN_MAPPING_PREFIX + genericAesRandomConverter.decrypt(encryptedRefreshToken, UUID.class));
+    }
+
+    public void revokeTokens(Set<UserModel> users) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Set<Object> encryptedKeys = new HashSet<>();
+        Set<Object> encryptedRefreshTokenKeys = new HashSet<>();
+        for (UserModel user : users) {
+            encryptedKeys.add(getEncryptedAccessTokenIdKey(user));
+            encryptedRefreshTokenKeys.add(getEncryptedRefreshTokenKey(user));
+        }
+        proceedAndRevokeTokens(encryptedKeys, encryptedRefreshTokenKeys);
+    }
+
+    private void proceedAndRevokeTokens(Set<Object> encryptedKeys, Set<Object> encryptedRefreshTokenKeys) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        List<Object> encryptedRefreshTokens = redisService.getAll(encryptedRefreshTokenKeys);
+        for (Object encryptedRefreshToken : encryptedRefreshTokens) {
+            if (encryptedRefreshToken != null) {
+                encryptedKeys.add(getEncryptedRefreshTokenMappingKey((String) encryptedRefreshToken));
+            }
+        }
+        if (!encryptedRefreshTokenKeys.isEmpty()) {
+            encryptedKeys.addAll(encryptedRefreshTokenKeys);
+        }
+        if (!encryptedKeys.isEmpty()) {
+            redisService.deleteAll(encryptedKeys);
+        }
     }
 }
