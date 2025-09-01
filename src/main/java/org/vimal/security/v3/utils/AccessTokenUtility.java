@@ -118,4 +118,30 @@ public class AccessTokenUtility {
         jweLocal.setPayload(jws);
         return jweLocal.getCompactSerialization();
     }
+
+    private UUID generateRefreshToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedRefreshTokenKey = getEncryptedRefreshTokenKey(user);
+        Object existingEncryptedRefreshToken = redisService.get(encryptedRefreshTokenKey);
+        if (existingEncryptedRefreshToken != null) {
+            return genericAesRandomConverter.decrypt((String) existingEncryptedRefreshToken, UUID.class);
+        }
+        UUID refreshToken = UUID.randomUUID();
+        String encryptedRefreshTokenMappingKey = genericAesStaticConverter.encrypt(REFRESH_TOKEN_MAPPING_PREFIX + refreshToken);
+        try {
+            redisService.save(encryptedRefreshTokenKey, genericAesRandomConverter.encrypt(refreshToken), REFRESH_TOKEN_EXPIRES_IN_DURATION);
+            redisService.save(encryptedRefreshTokenMappingKey, genericAesRandomConverter.encrypt(user.getId()), REFRESH_TOKEN_EXPIRES_IN_DURATION);
+            return refreshToken;
+        } catch (Exception ex) {
+            redisService.deleteAll(Set.of(encryptedRefreshTokenKey, encryptedRefreshTokenMappingKey));
+            throw new RuntimeException("Failed to generate refresh token", ex);
+        }
+    }
+
+    private String getEncryptedRefreshTokenKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedRefreshTokenKey(user.getId());
+    }
+
+    private String getEncryptedRefreshTokenKey(UUID userId) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticConverter.encrypt(REFRESH_TOKEN_PREFIX + userId);
+    }
 }
