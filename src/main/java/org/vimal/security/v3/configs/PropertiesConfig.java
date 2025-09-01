@@ -12,4 +12,6 @@ public class PropertiesConfig {
     private String genericAesStaticSecretKey;
     private String unleashUrl;
     private String unleashApiToken;
+    private String accessTokenSigningSecretKey;
+    private String accessTokenEncryptionSecretKey;
 }
