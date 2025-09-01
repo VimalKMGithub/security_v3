@@ -10,11 +10,15 @@ import org.jose4j.jwe.ContentEncryptionAlgorithmIdentifiers;
 import org.jose4j.jwe.JsonWebEncryption;
 import org.jose4j.jwe.KeyManagementAlgorithmIdentifiers;
 import org.jose4j.lang.JoseException;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.stereotype.Component;
 import org.vimal.security.v3.configs.PropertiesConfig;
 import org.vimal.security.v3.converter.GenericAesRandomConverter;
 import org.vimal.security.v3.converter.GenericAesStaticConverter;
 import org.vimal.security.v3.enums.MfaType;
+import org.vimal.security.v3.exceptions.SimpleBadRequestException;
+import org.vimal.security.v3.exceptions.UnauthorizedException;
+import org.vimal.security.v3.impls.UserDetailsImpl;
 import org.vimal.security.v3.models.PermissionModel;
 import org.vimal.security.v3.models.RoleModel;
 import org.vimal.security.v3.models.UserModel;
@@ -180,5 +184,40 @@ public class AccessTokenUtility {
                 .build()
                 .parseSignedClaims(jws)
                 .getPayload();
+    }
+
+    @SuppressWarnings("unchecked")
+    public UserDetailsImpl verifyAccessToken(String accessToken) throws JoseException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Claims claims = parseToken(decryptToken(accessToken));
+        if (Instant.parse(claims.get(ISSUED_AT.name(), String.class)).isAfter(Instant.now())) {
+            throw new UnauthorizedException("Invalid token");
+        }
+        if (Instant.parse(claims.get(EXPIRATION.name(), String.class)).isBefore(Instant.now())) {
+            throw new UnauthorizedException("Invalid token");
+        }
+        String userId = claims.get(USER_ID.name(), String.class);
+        Object encryptedAccessTokenId = redisService.get(genericAesStaticConverter.encrypt(ACCESS_TOKEN_ID_PREFIX + userId));
+        if (encryptedAccessTokenId == null) {
+            throw new UnauthorizedException("Invalid token");
+        }
+        if (!genericAesRandomConverter.decrypt((String) encryptedAccessTokenId, String.class).equals(claims.get(ACCESS_TOKEN_ID.name(), String.class))) {
+            throw new UnauthorizedException("Invalid token");
+        }
+        UserModel user = new UserModel();
+        user.setId(UUID.fromString(userId));
+        user.setUsername(claims.get(USERNAME.name(), String.class));
+        user.setEmail(claims.get(EMAIL.name(), String.class));
+        user.setRealEmail(claims.get(REAL_EMAIL.name(), String.class));
+        user.setMfaEnabled(claims.get(MFA_ENABLED.name(), Boolean.class));
+        Set<MfaType> mfaMethods = new HashSet<>();
+        for (var mfaMethod : (List<String>) claims.get(MFA_METHODS.name(), List.class)) {
+            mfaMethods.add(MfaType.valueOf(mfaMethod));
+        }
+        user.setMfaMethods(mfaMethods);
+        Set<SimpleGrantedAuthority> authorities = new HashSet<>();
+        for (var authority : (List<String>) claims.get(AUTHORITIES.name(), List.class)) {
+            authorities.add(new SimpleGrantedAuthority(authority));
+        }
+        return new UserDetailsImpl(user, authorities);
     }
 }
