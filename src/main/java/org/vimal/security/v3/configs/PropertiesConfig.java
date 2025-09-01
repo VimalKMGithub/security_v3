@@ -10,4 +10,6 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 public class PropertiesConfig {
     private String genericAesRandomSecretKey;
     private String genericAesStaticSecretKey;
+    private String unleashUrl;
+    private String unleashApiToken;
 }
