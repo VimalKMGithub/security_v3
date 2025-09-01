@@ -52,12 +52,11 @@ public class RoleModel {
     @Column(name = "updated_by", nullable = false, length = 512)
     private String updatedBy;
 
-    public void recordCreation(String creator) {
+    @PrePersist
+    public void recordCreation() {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
-        this.createdBy = creator;
-        this.updatedBy = creator;
     }
 
     public void recordUpdation(String updator) {

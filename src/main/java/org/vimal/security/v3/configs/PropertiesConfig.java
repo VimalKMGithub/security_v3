@@ -14,4 +14,12 @@ public class PropertiesConfig {
     private String unleashApiToken;
     private String accessTokenSigningSecretKey;
     private String accessTokenEncryptionSecretKey;
+    private String mailDisplayName;
+    private String helpMailAddress;
+    private String godUserUsername;
+    private String globalAdminUserUsername;
+    private String godUserEmail;
+    private String globalAdminUserEmail;
+    private String godUserPassword;
+    private String globalAdminUserPassword;
 }
