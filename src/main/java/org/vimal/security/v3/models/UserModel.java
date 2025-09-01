@@ -83,16 +83,16 @@ public class UserModel {
     private Instant accountDeletedAt;
 
     @JsonIgnore
-    @Column(name = "deleted_by", length = 512)
-    private String deletedBy;
+    @Column(name = "account_deleted_by", length = 512)
+    private String accountDeletedBy;
 
     @JsonIgnore
-    @Column(name = "recovered_at")
-    private Instant recoveredAt;
+    @Column(name = "account_recovered_at")
+    private Instant accountRecoveredAt;
 
     @JsonIgnore
-    @Column(name = "recovered_by", length = 512)
-    private String recoveredBy;
+    @Column(name = "account_recovered_by", length = 512)
+    private String accountRecoveredBy;
 
     @JsonIgnore
     @Column(name = "auth_app_secret", length = 512)
@@ -102,11 +102,11 @@ public class UserModel {
         if (isDeleted) {
             this.accountDeleted = true;
             this.accountDeletedAt = Instant.now();
-            this.deletedBy = agentUsername;
+            this.accountDeletedBy = agentUsername;
         } else {
             this.accountDeleted = false;
-            this.recoveredAt = Instant.now();
-            this.recoveredBy = agentUsername;
+            this.accountRecoveredAt = Instant.now();
+            this.accountRecoveredBy = agentUsername;
         }
     }
 
