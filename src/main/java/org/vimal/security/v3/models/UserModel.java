@@ -158,6 +158,7 @@ public class UserModel {
         Instant now = Instant.now();
         this.createdAt = now;
         this.updatedAt = now;
+        this.passwordChangedAt = now;
     }
 
     public void recordUpdation(String updator) {
