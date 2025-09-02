@@ -50,7 +50,7 @@ public class UserService {
     private static final String EMAIL_VERIFICATION_TOKEN_PREFIX = "SECURITY_V3_EMAIL_VERIFICATION_TOKEN:";
     private static final String EMAIL_VERIFICATION_TOKEN_MAPPING_PREFIX = "SECURITY_V3_EMAIL_VERIFICATION_TOKEN_MAPPING:";
     private static final String FORGOT_PASSWORD_OTP_PREFIX = "SECURITY_V3_FORGOT_PASSWORD_OTP:";
-    private static final String EMAIL_CHANGE_OTP_PREFIX = "SECURITY_V3_EMAIL_CHANGE_OTP:";
+    private static final String EMAIL_CHANGE_OTP_FOR_NEW_EMAIL_PREFIX = "SECURITY_V3_EMAIL_CHANGE_OTP_FOR_NEW_EMAIL:";
     private static final String EMAIL_CHANGE_OTP_FOR_OLD_EMAIL_PREFIX = "SECURITY_V3_EMAIL_CHANGE_OTP_FOR_OLD_EMAIL:";
     private static final String EMAIL_STORE_PREFIX = "SECURITY_V3_EMAIL_STORE:";
     private static final String EMAIL_OTP_TO_DELETE_ACCOUNT_PREFIX = "SECURITY_V3_EMAIL_OTP_TO_DELETE_ACCOUNT:";
@@ -470,5 +470,59 @@ public class UserService {
         selfChangePassword(user, dto.getPassword());
         emailConfirmationOnSelfPasswordChange(user);
         return Map.of("message", "Password change successful");
+    }
+
+    public Map<String, String> emailChangeRequest(String newEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (unleash.isEnabled(EMAIL_CHANGE_ENABLED.name())) {
+            validateEmail(newEmail);
+            UserModel user = getCurrentAuthenticatedUser();
+            String encryptedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(newEmail);
+            if (user.getEmail().equals(encryptedNewEmail)) {
+                throw new SimpleBadRequestException("New email cannot be same as current email");
+            }
+            if (userRepo.existsByEmail(encryptedNewEmail)) {
+                throw new SimpleBadRequestException("Email: '" + newEmail + "' is already taken");
+            }
+            String normalizedNewEmail = normalizeEmail(newEmail);
+            String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedNewEmail);
+            if (!user.getRealEmail().equals(normalizedNewEmail)) {
+                if (userRepo.existsByRealEmail(encryptedNormalizedNewEmail)) {
+                    throw new SimpleBadRequestException("Alias version of email: '" + newEmail + "' is already taken");
+                }
+            }
+            storeNewEmailForEmailChange(user, newEmail);
+            mailService.sendEmailAsync(newEmail, "Otp for email change in new email", generateOtpForEmailChangeForNewEmail(user), OTP);
+            mailService.sendEmailAsync(user.getEmail(), "Otp for email change in old email", generateOtpForEmailChangeForOldEmail(user), OTP);
+            return Map.of("message", "Otp's sent to your new & old email. Please check your emails to verify your email change");
+        }
+        throw new ServiceUnavailableException("Email change is currently disabled. Please try again later");
+    }
+
+    private void storeNewEmailForEmailChange(UserModel user, String newEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        redisService.save(getEncryptedNewEmailKey(user), genericAesRandomEncryptorDecryptor.encrypt(newEmail));
+    }
+
+    private String getEncryptedNewEmailKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_STORE_PREFIX + user.getId());
+    }
+
+    private String generateOtpForEmailChangeForNewEmail(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String otp = generateOtp();
+        redisService.save(getEncryptedNewEmailChangeOtpKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
+        return otp;
+    }
+
+    private String getEncryptedNewEmailChangeOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_NEW_EMAIL_PREFIX + user.getId());
+    }
+
+    private String generateOtpForEmailChangeForOldEmail(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String otp = generateOtp();
+        redisService.save(getEncryptedOldEmailChangeOtpKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
+        return otp;
+    }
+
+    private String getEncryptedOldEmailChangeOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_OLD_EMAIL_PREFIX + user.getId());
     }
 }
