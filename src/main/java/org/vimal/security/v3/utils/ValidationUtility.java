@@ -53,7 +53,7 @@ public final class ValidationUtility {
             throw new SimpleBadRequestException(fieldName + " must be exactly " + length + " characters long");
         }
         if (!NUMBER_ONLY_PATTERN.matcher(otp).matches()) {
-            throw new SimpleBadRequestException(fieldName + ": '" + "must contain only numbers");
+            throw new SimpleBadRequestException(fieldName + "must contain numbers only");
         }
     }
 }

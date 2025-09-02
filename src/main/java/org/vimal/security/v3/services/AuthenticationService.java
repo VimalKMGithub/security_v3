@@ -53,10 +53,10 @@ import static org.vimal.security.v3.utils.ValidationUtility.*;
 @RequiredArgsConstructor
 public class AuthenticationService {
     private static final Set<String> TOGGLE_TYPE = Set.of("enable", "disable");
-    private static final String STATE_TOKEN_PREFIX = "SECURITY_V2_STATE_TOKEN:";
-    private static final String STATE_TOKEN_MAPPING_PREFIX = "SECURITY_V2_STATE_TOKEN_MAPPING:";
-    private static final String EMAIL_MFA_OTP_PREFIX = "SECURITY_V2_EMAIL_MFA_OTP:";
-    private static final String AUTHENTICATOR_APP_SECRET_PREFIX = "SECURITY_V2_AUTHENTICATOR_APP_SECRET:";
+    private static final String STATE_TOKEN_PREFIX = "SECURITY_V3_STATE_TOKEN:";
+    private static final String STATE_TOKEN_MAPPING_PREFIX = "SECURITY_V3_STATE_TOKEN_MAPPING:";
+    private static final String EMAIL_MFA_OTP_PREFIX = "SECURITY_V3_EMAIL_MFA_OTP:";
+    private static final String AUTHENTICATOR_APP_SECRET_PREFIX = "SECURITY_V3_AUTHENTICATOR_APP_SECRET:";
     private final AuthenticationManager authenticationManager;
     private final AccessTokenUtility accessTokenUtility;
     private final RedisService redisService;

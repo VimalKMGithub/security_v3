@@ -16,9 +16,9 @@ public final class OtpUtility {
         return generateOtp(DEFAULT_OTP_LENGTH);
     }
 
-    private static String generateOtp(int length) {
+    public static String generateOtp(int length) {
         if (length < 1) {
-            throw new SimpleBadRequestException("OTP length must be at least 1");
+            throw new SimpleBadRequestException("Otp length must be at least 1");
         }
         char[] otpChars = new char[length];
         for (int i = 0; i < length; i++) {
