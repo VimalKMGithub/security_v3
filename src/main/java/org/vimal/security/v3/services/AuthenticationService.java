@@ -5,6 +5,7 @@ import com.google.zxing.WriterException;
 import io.getunleash.Unleash;
 import lombok.RequiredArgsConstructor;
 import org.jose4j.lang.JoseException;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -34,8 +35,14 @@ import java.util.UUID;
 
 import static org.vimal.security.v3.enums.FeatureFlags.FORCE_MFA;
 import static org.vimal.security.v3.enums.FeatureFlags.MFA;
+import static org.vimal.security.v3.enums.MailType.OTP;
 import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
+import static org.vimal.security.v3.utils.MfaUtility.MFA_METHODS;
 import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
+import static org.vimal.security.v3.utils.OtpUtility.generateOtp;
+import static org.vimal.security.v3.utils.QrUtility.generateQRCode;
+import static org.vimal.security.v3.utils.TotpUtility.generateBase32Secret;
+import static org.vimal.security.v3.utils.TotpUtility.generateTotpUrl;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
@@ -199,5 +206,54 @@ public class AuthenticationService {
             throw new SimpleBadRequestException(type + " Mfa is already disabled");
         }
         return mfaType;
+    }
+
+    private ResponseEntity<Object> proceedRequestToToggleMfa(UserModel user, MfaType type, boolean toggleEnabled) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
+        if (toggleEnabled) {
+            switch (type) {
+                case EMAIL_MFA -> {
+                    mailService.sendEmailAsync(user.getEmail(), "Otp to enable email Mfa", generateOtpForEmailMfa(user), OTP);
+                    return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
+                }
+                case AUTHENTICATOR_APP_MFA -> {
+                    return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(generateQrCodeForAuthenticatorApp(user));
+                }
+            }
+        } else {
+            switch (type) {
+                case EMAIL_MFA -> {
+                    mailService.sendEmailAsync(user.getEmail(), "Otp to disable email MFA", generateOtpForEmailMfa(user), OTP);
+                    return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
+                }
+                case AUTHENTICATOR_APP_MFA -> {
+                    return ResponseEntity.ok(Map.of("message", "Please proceed to verify Totp"));
+                }
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
+    }
+
+    private String generateOtpForEmailMfa(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String otp = generateOtp();
+        redisService.save(getEncryptedEmailMfaOtpKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
+        return otp;
+    }
+
+    private String getEncryptedEmailMfaOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_MFA_OTP_PREFIX + user.getId());
+    }
+
+    private byte[] generateQrCodeForAuthenticatorApp(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
+        return generateQRCode(generateTotpUrl("God Level Security", user.getUsername(), generateAuthenticatorAppSecret(user)));
+    }
+
+    private String generateAuthenticatorAppSecret(UserModel user) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String secret = generateBase32Secret();
+        redisService.save(getEncryptedSecretKey(user), genericAesRandomEncryptorDecryptor.encrypt(secret));
+        return secret;
+    }
+
+    private String getEncryptedSecretKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(AUTHENTICATOR_APP_SECRET_PREFIX + user.getId());
     }
 }
