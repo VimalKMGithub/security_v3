@@ -3,10 +3,10 @@ package org.vimal.security.v3.utils;
 import io.getunleash.Unleash;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.vimal.security.v3.exceptions.ServiceUnavailableException;
 import org.vimal.security.v3.models.UserModel;
 
-import static org.vimal.security.v3.enums.FeatureFlags.MFA_AUTHENTICATOR_APP;
-import static org.vimal.security.v3.enums.FeatureFlags.MFA_EMAIL;
+import static org.vimal.security.v3.enums.FeatureFlags.*;
 import static org.vimal.security.v3.enums.MfaType.AUTHENTICATOR_APP_MFA;
 import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
 
@@ -27,5 +27,11 @@ public class UnleashUtility {
             }
         }
         return doMfa;
+    }
+
+    public void isMfaEnabledGlobally() {
+        if (!unleash.isEnabled(MFA.name())) {
+            throw new ServiceUnavailableException("Mfa is disabled globally");
+        }
     }
 }

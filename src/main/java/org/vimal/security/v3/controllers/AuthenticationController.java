@@ -1,6 +1,7 @@
 package org.vimal.security.v3.controllers;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.zxing.WriterException;
 import lombok.RequiredArgsConstructor;
 import org.jose4j.lang.JoseException;
 import org.springframework.http.ResponseEntity;
@@ -13,6 +14,7 @@ import org.vimal.security.v3.services.AuthenticationService;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -47,5 +49,10 @@ public class AuthenticationController {
     @PostMapping("/revoke/refreshToken")
     public ResponseEntity<Map<String, String>> revokeRefreshToken(@RequestParam String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(authenticationService.revokeRefreshToken(refreshToken));
+    }
+
+    @PostMapping("/mfa/requestTo/toggle")
+    public ResponseEntity<Object> requestToToggleMfa(@RequestParam String type, @RequestParam String toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, IOException, InvalidKeyException, WriterException {
+        return authenticationService.requestToToggleMfa(type, toggle);
     }
 }

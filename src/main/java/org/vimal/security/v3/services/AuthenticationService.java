@@ -1,9 +1,11 @@
 package org.vimal.security.v3.services;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.zxing.WriterException;
 import io.getunleash.Unleash;
 import lombok.RequiredArgsConstructor;
 import org.jose4j.lang.JoseException;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -11,6 +13,8 @@ import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
+import org.vimal.security.v3.enums.MfaType;
+import org.vimal.security.v3.exceptions.ServiceUnavailableException;
 import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 import org.vimal.security.v3.models.UserModel;
 import org.vimal.security.v3.repos.UserRepo;
@@ -20,6 +24,7 @@ import org.vimal.security.v3.utils.UnleashUtility;
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
 import javax.crypto.NoSuchPaddingException;
+import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
@@ -30,6 +35,7 @@ import java.util.UUID;
 import static org.vimal.security.v3.enums.FeatureFlags.FORCE_MFA;
 import static org.vimal.security.v3.enums.FeatureFlags.MFA;
 import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
+import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
@@ -92,14 +98,14 @@ public class AuthenticationService {
         if (unleash.isEnabled(MFA.name())) {
             if (unleashUtility.shouldDoMfa(user)) {
                 return Map.of(
-                        "message", "MFA required",
+                        "message", "Mfa required",
                         "state_token", generateStateToken(user),
                         "mfa_methods", user.getMfaMethods()
                 );
             }
             if (unleash.isEnabled(FORCE_MFA.name())) {
                 return Map.of(
-                        "message", "MFA required",
+                        "message", "Mfa required",
                         "state_token", generateStateToken(user),
                         "mfa_methods", Set.of(EMAIL_MFA)
                 );
@@ -163,5 +169,35 @@ public class AuthenticationService {
         }
         accessTokenUtility.revokeRefreshToken(refreshToken);
         return Map.of("message", "Refresh token revoked successfully");
+    }
+
+    public ResponseEntity<Object> requestToToggleMfa(String type, String toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
+        boolean toggleEnabled = validateToggle(toggle);
+        UserModel user = getCurrentAuthenticatedUser();
+        return proceedRequestToToggleMfa(user, validateType(type, user, toggleEnabled), toggleEnabled);
+    }
+
+    private boolean validateToggle(String toggle) {
+        if (!TOGGLE_TYPE.contains(toggle.toLowerCase())) {
+            throw new SimpleBadRequestException("Unsupported toggle type: " + toggle + ". Supported values: " + TOGGLE_TYPE);
+        }
+        return toggle.equalsIgnoreCase("enable");
+    }
+
+    private MfaType validateType(String type, UserModel user, boolean toggleEnabled) {
+        validateTypeExistence(type);
+        unleashUtility.isMfaEnabledGlobally();
+        MfaType mfaType = MfaType.valueOf(type.toUpperCase());
+        if (!unleash.isEnabled(mfaType.toFeatureFlag().name())) {
+            throw new ServiceUnavailableException(type + " Mfa is disabled globally");
+        }
+        boolean hasMFAType = user.hasMfaMethod(mfaType);
+        if (toggleEnabled && hasMFAType) {
+            throw new SimpleBadRequestException(type + " Mfa is already enabled");
+        }
+        if (!toggleEnabled && !hasMFAType) {
+            throw new SimpleBadRequestException(type + " Mfa is already disabled");
+        }
+        return mfaType;
     }
 }
