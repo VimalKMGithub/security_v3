@@ -56,8 +56,10 @@ public class MapperUtility {
         dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(user.getCreatedBy(), String.class));
         dto.setUpdatedBy(genericAesRandomEncryptorDecryptor.decrypt(user.getUpdatedBy(), String.class));
         Set<String> roles = new HashSet<>();
-        for (RoleModel role : user.getRoles()) {
-            roles.add(role.getRoleName());
+        if (user.getRoles() != null) {
+            for (RoleModel role : user.getRoles()) {
+                roles.add(role.getRoleName());
+            }
         }
         dto.setRoles(roles);
         dto.setMfaEnabled(user.isMfaEnabled());
