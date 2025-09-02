@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.vimal.security.v3.dtos.ChangePwdDto;
 import org.vimal.security.v3.dtos.RegistrationDto;
 import org.vimal.security.v3.dtos.ResetPwdDto;
 import org.vimal.security.v3.dtos.UserSummaryDto;
@@ -56,5 +57,10 @@ public class UserController {
     @PostMapping("/reset/password")
     public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody ResetPwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return userService.resetPassword(dto);
+    }
+
+    @PostMapping("/change/password")
+    public ResponseEntity<Map<String, Object>> changePassword(@RequestBody ChangePwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return userService.changePassword(dto);
     }
 }

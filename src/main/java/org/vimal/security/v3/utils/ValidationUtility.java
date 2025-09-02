@@ -171,7 +171,7 @@ public final class ValidationUtility {
         return validationErrors;
     }
 
-    private static Set<String> validateInputsPasswordAndConfirmPassword(ResetPwdDto dto) {
+    public static Set<String> validateInputsPasswordAndConfirmPassword(ResetPwdDto dto) {
         Set<String> validationErrors = new HashSet<>();
         try {
             validatePassword(dto.getPassword());

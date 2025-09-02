@@ -6,6 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.vimal.security.v3.dtos.ChangePwdDto;
 import org.vimal.security.v3.dtos.RegistrationDto;
 import org.vimal.security.v3.dtos.ResetPwdDto;
 import org.vimal.security.v3.dtos.UserSummaryDto;
@@ -18,6 +19,7 @@ import org.vimal.security.v3.models.UserModel;
 import org.vimal.security.v3.repos.UserRepo;
 import org.vimal.security.v3.utils.AccessTokenUtility;
 import org.vimal.security.v3.utils.MapperUtility;
+import org.vimal.security.v3.utils.UnleashUtility;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -59,6 +61,7 @@ public class UserService {
     private final Unleash unleash;
     private final AccessTokenUtility accessTokenUtility;
     private final MapperUtility mapperUtility;
+    private final UnleashUtility unleashUtility;
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
@@ -311,5 +314,39 @@ public class UserService {
         selfChangePassword(user, dto.getPassword());
         emailConfirmationOnPasswordReset(user);
         return Map.of("message", "Password reset successful");
+    }
+
+    public ResponseEntity<Map<String, Object>> changePassword(ChangePwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Set<String> invalidInputs = validateInputsPasswordAndConfirmPassword(dto);
+        try {
+            validatePassword(dto.getOldPassword());
+        } catch (SimpleBadRequestException ex) {
+            invalidInputs.add("Invalid old password");
+        }
+        if (!invalidInputs.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("invalid_inputs", invalidInputs));
+        }
+        UserModel user = getCurrentAuthenticatedUser();
+        if (unleash.isEnabled(MFA.name())) {
+            if (unleashUtility.shouldDoMfa(user)) {
+                return ResponseEntity.ok(Map.of("message", "Please select a method to password change", "methods", user.getMfaMethods()));
+            }
+            if (unleash.isEnabled(FORCE_MFA.name())) {
+                return ResponseEntity.ok(Map.of("message", "Please select a method to password change", "methods", Set.of(EMAIL_MFA)));
+            }
+        }
+        user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+            throw new SimpleBadRequestException("Invalid old password");
+        }
+        selfChangePassword(user, dto.getPassword());
+        emailConfirmationOnSelfPasswordChange(user);
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
+    }
+
+    private void emailConfirmationOnSelfPasswordChange(UserModel user) {
+        if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_PASSWORD_CHANGE.name())) {
+            mailService.sendEmailAsync(user.getEmail(), "Password change confirmation", "", SELF_PASSWORD_CHANGE_CONFIRMATION);
+        }
     }
 }
