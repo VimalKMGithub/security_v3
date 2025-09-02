@@ -525,4 +525,72 @@ public class UserService {
     private String getEncryptedOldEmailChangeOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_OLD_EMAIL_PREFIX + user.getId());
     }
+
+    public Map<String, Object> verifyEmailChange(String newEmailOtp, String oldEmailOtp, String password) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (unleash.isEnabled(EMAIL_CHANGE_ENABLED.name())) {
+            try {
+                validateOtp(newEmailOtp, "New email Otp");
+                validateOtp(oldEmailOtp, "Old email Otp");
+            } catch (SimpleBadRequestException ex) {
+                throw new SimpleBadRequestException("Invalid Otp's");
+            }
+            UserModel user = getCurrentAuthenticatedUser();
+            String encryptedNewEmailChangeOtpKey = getEncryptedNewEmailChangeOtpKey(user);
+            Object encryptedNewEmailOtp = redisService.get(encryptedNewEmailChangeOtpKey);
+            if (encryptedNewEmailOtp == null) {
+                throw new SimpleBadRequestException("Invalid Otp's");
+            }
+            if (!genericAesRandomEncryptorDecryptor.decrypt((String) encryptedNewEmailOtp, String.class).equals(newEmailOtp)) {
+                throw new SimpleBadRequestException("Invalid Otp's");
+            }
+            String encryptedOldEmailChangeOtpKey = getEncryptedOldEmailChangeOtpKey(user);
+            Object encryptedOldEmailOtp = redisService.get(encryptedOldEmailChangeOtpKey);
+            if (encryptedOldEmailOtp == null) {
+                throw new SimpleBadRequestException("Invalid Otp's");
+            }
+            if (!genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOldEmailOtp, String.class).equals(oldEmailOtp)) {
+                throw new SimpleBadRequestException("Invalid Otp's");
+            }
+            String encryptedNewEmailKey = getEncryptedNewEmailKey(user);
+            Object encryptedStoredNewEmail = redisService.get(encryptedNewEmailKey);
+            if (encryptedStoredNewEmail == null) {
+                throw new SimpleBadRequestException("Invalid Otp's");
+            }
+            String newEmail = genericAesRandomEncryptorDecryptor.decrypt((String) encryptedStoredNewEmail, String.class);
+            String encryptedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(newEmail);
+            if (user.getEmail().equals(encryptedNewEmail)) {
+                throw new SimpleBadRequestException("New email cannot be same as current email");
+            }
+            if (userRepo.existsByEmail(encryptedNewEmail)) {
+                throw new SimpleBadRequestException("Email: '" + newEmail + "' is already taken");
+            }
+            String normalizedNewEmail = normalizeEmail(newEmail);
+            String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedNewEmail);
+            if (!user.getRealEmail().equals(normalizedNewEmail)) {
+                if (userRepo.existsByRealEmail(encryptedNormalizedNewEmail)) {
+                    throw new SimpleBadRequestException("Alias version of email: '" + newEmail + "' is already taken");
+                }
+            }
+            user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+            if (!passwordEncoder.matches(password, user.getPassword())) {
+                throw new SimpleBadRequestException("Invalid password");
+            }
+            String oldEmail = genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class);
+            user.setEmail(encryptedNewEmail);
+            user.setRealEmail(encryptedNormalizedNewEmail);
+            accessTokenUtility.revokeTokens(Set.of(user));
+            try {
+                redisService.deleteAll(Set.of(encryptedNewEmailChangeOtpKey, encryptedOldEmailChangeOtpKey, encryptedNewEmailKey));
+            } catch (Exception ignored) {
+            }
+            if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_EMAIL_CHANGE.name())) {
+                mailService.sendEmailAsync(oldEmail, "Email change confirmation on old email", "", SELF_EMAIL_CHANGE_CONFIRMATION);
+            }
+            return Map.of(
+                    "message", "Email change successful. Please login again to continue",
+                    "user", mapperUtility.toUserSummaryDto(userRepo.save(user))
+            );
+        }
+        throw new ServiceUnavailableException("Email change is currently disabled. Please try again later");
+    }
 }
