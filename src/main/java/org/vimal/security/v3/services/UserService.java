@@ -686,4 +686,73 @@ public class UserService {
     private String getEncryptedEmailOtpToDeleteAccountKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_TO_DELETE_ACCOUNT_PREFIX + user.getId());
     }
+
+    public Map<String, String> verifyDeleteAccount(String otpTotp, String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (unleash.isEnabled(ACCOUNT_DELETION_ALLOWED.name())) {
+            validateTypeExistence(method);
+            try {
+                validateOtp(otpTotp, "Otp/Totp");
+            } catch (SimpleBadRequestException ex) {
+                throw new SimpleBadRequestException("Invalid Otp/Totp");
+            }
+            unleashUtility.isMfaEnabledGlobally();
+            UserModel user = getCurrentAuthenticatedUser();
+            MfaType methodType = MfaType.valueOf(method.toUpperCase());
+            switch (methodType) {
+                case EMAIL_MFA -> {
+                    if (user.getMfaMethods().isEmpty()) {
+                        if (!unleash.isEnabled(FORCE_MFA.name())) {
+                            throw new SimpleBadRequestException("Email Mfa is not enabled");
+                        }
+                        return verifyEmailOtpToDeleteAccount(otpTotp, user);
+                    } else if (user.hasMfaMethod(EMAIL_MFA)) {
+                        if (!unleash.isEnabled(MFA_EMAIL.name())) {
+                            throw new ServiceUnavailableException("Email Mfa is disabled globally");
+                        }
+                        return verifyEmailOtpToDeleteAccount(otpTotp, user);
+                    } else {
+                        throw new SimpleBadRequestException("Email Mfa is not enabled");
+                    }
+                }
+                case AUTHENTICATOR_APP_MFA -> {
+                    if (!unleash.isEnabled(MFA_AUTHENTICATOR_APP.name())) {
+                        throw new ServiceUnavailableException("Authenticator app Mfa is disabled globally");
+                    }
+                    if (!user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
+                        throw new SimpleBadRequestException("Authenticator app Mfa is not enabled");
+                    }
+                    return verifyAuthenticatorAppTOTPToDeleteAccount(otpTotp, user);
+                }
+            }
+            throw new SimpleBadRequestException("Unsupported Mfa type: " + method + ". Supported types: " + MFA_METHODS);
+        }
+        throw new ServiceUnavailableException("Account deletion is currently disabled. Please try again later");
+    }
+
+    private Map<String, String> verifyEmailOtpToDeleteAccount(String otp, UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedEmailOtpToDeleteAccountKey = getEncryptedEmailOtpToDeleteAccountKey(user);
+        Object encryptedOtp = redisService.get(encryptedEmailOtpToDeleteAccountKey);
+        if (encryptedOtp != null) {
+            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(otp)) {
+                try {
+                    redisService.delete(encryptedEmailOtpToDeleteAccountKey);
+                } catch (Exception ignored) {
+                }
+                user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+                selfDeleteAccount(user);
+                return Map.of("message", "Account deleted successfully");
+            }
+            throw new SimpleBadRequestException("Invalid Otp");
+        }
+        throw new SimpleBadRequestException("Invalid Otp");
+    }
+
+    private Map<String, String> verifyAuthenticatorAppTOTPToDeleteAccount(String totp, UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), totp)) {
+            throw new SimpleBadRequestException("Invalid Totp");
+        }
+        selfDeleteAccount(user);
+        return Map.of("message", "Account deleted successfully");
+    }
 }
