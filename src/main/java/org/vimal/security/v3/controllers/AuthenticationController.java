@@ -43,4 +43,9 @@ public class AuthenticationController {
     public ResponseEntity<Map<String, String>> revokeAccessToken() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(authenticationService.revokeAccessToken());
     }
+
+    @PostMapping("/revoke/refreshToken")
+    public ResponseEntity<Map<String, String>> revokeRefreshToken(@RequestParam String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return ResponseEntity.ok(authenticationService.revokeRefreshToken(refreshToken));
+    }
 }

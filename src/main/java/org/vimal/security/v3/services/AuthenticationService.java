@@ -154,4 +154,14 @@ public class AuthenticationService {
         accessTokenUtility.revokeAccessToken(getCurrentAuthenticatedUser());
         return Map.of("message", "Access token revoked successfully");
     }
+
+    public Map<String, String> revokeRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        try {
+            validateUuid(refreshToken, "Refresh token");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid refresh token");
+        }
+        accessTokenUtility.revokeRefreshToken(refreshToken);
+        return Map.of("message", "Refresh token revoked successfully");
+    }
 }
