@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.vimal.security.v3.dtos.RegistrationDto;
+import org.vimal.security.v3.dtos.ResetPwdDto;
 import org.vimal.security.v3.dtos.UserSummaryDto;
 import org.vimal.security.v3.services.UserService;
 
@@ -50,5 +51,10 @@ public class UserController {
     @PostMapping("/forgot/password/methodSelection")
     public ResponseEntity<Map<String, String>> forgotPasswordMethodSelection(@RequestParam String usernameOrEmail, @RequestParam String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(userService.forgotPasswordMethodSelection(usernameOrEmail, method));
+    }
+
+    @PostMapping("/reset/password")
+    public ResponseEntity<Map<String, Object>> resetPassword(@RequestBody ResetPwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return userService.resetPassword(dto);
     }
 }

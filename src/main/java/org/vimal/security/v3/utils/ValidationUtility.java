@@ -1,6 +1,7 @@
 package org.vimal.security.v3.utils;
 
 import org.vimal.security.v3.dtos.RegistrationDto;
+import org.vimal.security.v3.dtos.ResetPwdDto;
 import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 
 import java.util.HashSet;
@@ -151,6 +152,34 @@ public final class ValidationUtility {
             validateLastName(dto.getLastName());
         } catch (SimpleBadRequestException ex) {
             validationErrors.add(ex.getMessage());
+        }
+        return validationErrors;
+    }
+
+    public static Set<String> validateInputs(ResetPwdDto dto) {
+        Set<String> validationErrors = validateInputsPasswordAndConfirmPassword(dto);
+        try {
+            validateStringIsNonNullAndNotBlank(dto.getUsernameOrEmail(), "Username/email");
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add("Invalid username/email");
+        }
+        try {
+            validateOtp(dto.getOtpTotp(), "Otp/Totp");
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add("Invalid Otp/Totp");
+        }
+        return validationErrors;
+    }
+
+    private static Set<String> validateInputsPasswordAndConfirmPassword(ResetPwdDto dto) {
+        Set<String> validationErrors = new HashSet<>();
+        try {
+            validatePassword(dto.getPassword());
+            if (!dto.getPassword().equals(dto.getConfirmPassword())) {
+                validationErrors.add("New password: '" + dto.getPassword() + "' and confirm password: '" + dto.getConfirmPassword() + "' do not match");
+            }
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add("New " + ex.getMessage());
         }
         return validationErrors;
     }

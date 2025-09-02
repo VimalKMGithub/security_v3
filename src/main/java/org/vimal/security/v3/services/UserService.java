@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.vimal.security.v3.dtos.RegistrationDto;
+import org.vimal.security.v3.dtos.ResetPwdDto;
 import org.vimal.security.v3.dtos.UserSummaryDto;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
@@ -30,13 +31,13 @@ import java.util.Set;
 import java.util.UUID;
 
 import static org.vimal.security.v3.enums.FeatureFlags.*;
-import static org.vimal.security.v3.enums.MailType.LINK;
-import static org.vimal.security.v3.enums.MailType.OTP;
+import static org.vimal.security.v3.enums.MailType.*;
 import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
 import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
 import static org.vimal.security.v3.utils.MfaUtility.MFA_METHODS;
 import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
 import static org.vimal.security.v3.utils.OtpUtility.generateOtp;
+import static org.vimal.security.v3.utils.TotpUtility.verifyTotp;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
@@ -247,5 +248,68 @@ public class UserService {
 
     private String getEncryptedForgotPasswordOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(FORGOT_PASSWORD_OTP_PREFIX + user.getId());
+    }
+
+    public ResponseEntity<Map<String, Object>> resetPassword(ResetPwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateTypeExistence(dto.getMethod());
+        Set<String> invalidInputs = validateInputs(dto);
+        if (!invalidInputs.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("invalid_inputs", invalidInputs));
+        }
+        MfaType methodType = MfaType.valueOf(dto.getMethod().toUpperCase());
+        UserModel user = getUserByUsernameOrEmail(dto.getUsernameOrEmail());
+        Set<MfaType> methods = user.getMfaMethods();
+        methods.add(EMAIL_MFA);
+        if (!methods.contains(methodType)) {
+            throw new SimpleBadRequestException("Mfa method: '" + dto.getMethod() + "' is not enabled for user");
+        }
+        switch (methodType) {
+            case EMAIL_MFA -> {
+                return ResponseEntity.ok(verifyEmailOtpToResetPassword(user, dto));
+            }
+            case AUTHENTICATOR_APP_MFA -> {
+                return ResponseEntity.ok(verifyAuthenticatorAppTotpToResetPassword(user, dto));
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + dto.getMethod() + ". Supported types: " + MFA_METHODS);
+    }
+
+    private Map<String, Object> verifyEmailOtpToResetPassword(UserModel user, ResetPwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedForgotPasswordOtpKey = getEncryptedForgotPasswordOtpKey(user);
+        Object encryptedOtp = redisService.get(encryptedForgotPasswordOtpKey);
+        if (encryptedOtp != null) {
+            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(dto.getOtpTotp())) {
+                try {
+                    redisService.delete(encryptedForgotPasswordOtpKey);
+                } catch (Exception ignored) {
+                }
+                selfChangePassword(user, dto.getPassword());
+                emailConfirmationOnPasswordReset(user);
+                return Map.of("message", "Password reset successful");
+            }
+            throw new SimpleBadRequestException("Invalid Otp");
+        }
+        throw new SimpleBadRequestException("Invalid Otp");
+    }
+
+    private void selfChangePassword(UserModel user, String password) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        user.recordPasswordChange(passwordEncoder.encode(password));
+        user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+        userRepo.save(user);
+    }
+
+    private void emailConfirmationOnPasswordReset(UserModel user) {
+        if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_PASSWORD_RESET.name())) {
+            mailService.sendEmailAsync(user.getEmail(), "Password reset confirmation", "", PASSWORD_RESET_CONFIRMATION);
+        }
+    }
+
+    private Map<String, Object> verifyAuthenticatorAppTotpToResetPassword(UserModel user, ResetPwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), dto.getOtpTotp())) {
+            throw new SimpleBadRequestException("Invalid Totp");
+        }
+        selfChangePassword(user, dto.getPassword());
+        emailConfirmationOnPasswordReset(user);
+        return Map.of("message", "Password reset successful");
     }
 }
