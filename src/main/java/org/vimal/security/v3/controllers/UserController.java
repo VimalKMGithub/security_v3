@@ -88,4 +88,9 @@ public class UserController {
     public ResponseEntity<Map<String, Object>> deleteAccount(@RequestParam String password) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return userService.deleteAccount(password);
     }
+
+    @PostMapping("/delete/account/methodSelection")
+    public ResponseEntity<Map<String, String>> deleteAccountMethodSelection(@RequestParam String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return ResponseEntity.ok(userService.deleteAccountMethodSelection(method));
+    }
 }
