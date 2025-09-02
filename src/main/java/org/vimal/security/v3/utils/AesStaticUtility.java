@@ -33,8 +33,7 @@ public class AesStaticUtility {
         return Base64.getEncoder().encodeToString(cipher.doFinal(data.getBytes()));
     }
 
-    public <T> T decrypt(String encryptedData,
-                         Class<T> targetClass) throws JsonProcessingException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
+    public <T> T decrypt(String encryptedData, Class<T> targetClass) throws JsonProcessingException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException {
         return objectMapper.readValue(decryptString(encryptedData), targetClass);
     }
 

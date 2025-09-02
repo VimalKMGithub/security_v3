@@ -77,13 +77,14 @@ public class UserService {
             boolean shouldVerifyRegisteredEmail = unleash.isEnabled(REGISTRATION_EMAIL_VERIFICATION.name());
             user.setEmailVerified(!shouldVerifyRegisteredEmail);
             Map<String, Object> response = new HashMap<>();
+            user = userRepo.save(user);
             if (shouldVerifyRegisteredEmail) {
                 mailService.sendEmailAsync(dto.getEmail(), "Email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
                 response.put("message", "Registration successful. Please check your email for verification link");
             } else {
                 response.put("message", "Registration successful");
             }
-            response.put("user", mapperUtility.toUserSummaryDto(userRepo.save(user)));
+            response.put("user", mapperUtility.toUserSummaryDto(user));
             return ResponseEntity.ok(response);
         }
         throw new ServiceUnavailableException("Registration is currently disabled. Please try again later");
