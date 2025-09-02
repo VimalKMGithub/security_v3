@@ -30,6 +30,7 @@ import java.util.UUID;
 import static org.vimal.security.v3.enums.FeatureFlags.FORCE_MFA;
 import static org.vimal.security.v3.enums.FeatureFlags.MFA;
 import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
+import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
 @Service
@@ -132,5 +133,11 @@ public class AuthenticationService {
     private void handleFailedLogin(UserModel user) {
         user.recordFailedLoginAttempt();
         userRepo.save(user);
+    }
+
+    public Map<String, String> logout() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserModel user = getCurrentAuthenticatedUser();
+        accessTokenUtility.revokeTokens(Set.of(user));
+        return Map.of("message", "Logout successful");
     }
 }

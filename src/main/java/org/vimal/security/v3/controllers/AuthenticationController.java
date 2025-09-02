@@ -28,4 +28,9 @@ public class AuthenticationController {
     public ResponseEntity<Map<String, Object>> login(@RequestParam String usernameOrEmail, @RequestParam String password) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(authenticationService.login(usernameOrEmail, password));
     }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, String>> logout() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return ResponseEntity.ok(authenticationService.logout());
+    }
 }
