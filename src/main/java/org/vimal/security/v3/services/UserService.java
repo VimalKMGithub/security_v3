@@ -593,4 +593,45 @@ public class UserService {
         }
         throw new ServiceUnavailableException("Email change is currently disabled. Please try again later");
     }
+
+    public ResponseEntity<Map<String, Object>> deleteAccount(String password) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (unleash.isEnabled(ACCOUNT_DELETION_ALLOWED.name())) {
+            try {
+                validatePassword(password);
+            } catch (SimpleBadRequestException ex) {
+                throw new SimpleBadRequestException("Invalid password");
+            }
+            UserModel user = getCurrentAuthenticatedUser();
+            if (unleash.isEnabled(MFA.name())) {
+                if (unleashUtility.shouldDoMfa(user)) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "Please select a method for account deletion",
+                            "methods", user.getMfaMethods())
+                    );
+                }
+                if (unleash.isEnabled(FORCE_MFA.name())) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "Please select a method for account deletion",
+                            "methods", Set.of(EMAIL_MFA))
+                    );
+                }
+            }
+            user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+            if (!passwordEncoder.matches(password, user.getPassword())) {
+                throw new SimpleBadRequestException("Invalid old password");
+            }
+            selfDeleteAccount(user);
+            return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
+        }
+        throw new ServiceUnavailableException("Account deletion is currently disabled. Please try again later");
+    }
+
+    private void selfDeleteAccount(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        accessTokenUtility.revokeTokens(Set.of(user));
+        user.recordAccountDeletion(true, genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+        userRepo.save(user);
+        if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_ACCOUNT_DELETION.name())) {
+            mailService.sendEmailAsync(user.getEmail(), "Account deletion confirmation", "", ACCOUNT_DELETION_CONFIRMATION);
+        }
+    }
 }
