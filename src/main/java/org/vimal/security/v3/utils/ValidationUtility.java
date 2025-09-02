@@ -42,4 +42,18 @@ public final class ValidationUtility {
             throw new SimpleBadRequestException(fieldName + ": '" + uuid + "' is of invalid format");
         }
     }
+
+    public static void validateOtp(String otp, String fieldName) {
+        validateOtp(otp, fieldName, DEFAULT_OTP_LENGTH);
+    }
+
+    public static void validateOtp(String otp, String fieldName, int length) {
+        validateStringIsNonNullAndNotBlank(otp, fieldName);
+        if (otp.length() != length) {
+            throw new SimpleBadRequestException(fieldName + " must be exactly " + length + " characters long");
+        }
+        if (!NUMBER_ONLY_PATTERN.matcher(otp).matches()) {
+            throw new SimpleBadRequestException(fieldName + ": '" + "must contain only numbers");
+        }
+    }
 }

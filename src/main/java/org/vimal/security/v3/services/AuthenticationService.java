@@ -33,16 +33,16 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.vimal.security.v3.enums.FeatureFlags.FORCE_MFA;
-import static org.vimal.security.v3.enums.FeatureFlags.MFA;
+import static org.vimal.security.v3.enums.FeatureFlags.*;
 import static org.vimal.security.v3.enums.MailType.OTP;
+import static org.vimal.security.v3.enums.MailType.SELF_MFA_ENABLE_DISABLE_CONFIRMATION;
+import static org.vimal.security.v3.enums.MfaType.AUTHENTICATOR_APP_MFA;
 import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
 import static org.vimal.security.v3.utils.MfaUtility.MFA_METHODS;
 import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
 import static org.vimal.security.v3.utils.OtpUtility.generateOtp;
 import static org.vimal.security.v3.utils.QrUtility.generateQRCode;
-import static org.vimal.security.v3.utils.TotpUtility.generateBase32Secret;
-import static org.vimal.security.v3.utils.TotpUtility.generateTotpUrl;
+import static org.vimal.security.v3.utils.TotpUtility.*;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
@@ -255,5 +255,105 @@ public class AuthenticationService {
 
     private String getEncryptedSecretKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(AUTHENTICATOR_APP_SECRET_PREFIX + user.getId());
+    }
+
+    public Map<String, String> verifyToggleMFA(String type, String toggle, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean toggleEnabled = validateToggle(toggle);
+        UserModel user = getCurrentAuthenticatedUser();
+        return proceedToVerifyToggleMfa(user, validateType(type, user, toggleEnabled), toggleEnabled, otpTotp);
+    }
+
+    private Map<String, String> proceedToVerifyToggleMfa(UserModel user, MfaType type, boolean toggleEnabled, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (toggleEnabled) {
+            switch (type) {
+                case EMAIL_MFA -> {
+                    return verifyOtpToToggleEmailMfa(user, otpTotp, true);
+                }
+                case AUTHENTICATOR_APP_MFA -> {
+                    return verifyTotpToEnableAuthenticatorAppMfa(user, otpTotp);
+                }
+            }
+        } else {
+            switch (type) {
+                case EMAIL_MFA -> {
+                    return verifyOtpToToggleEmailMfa(user, otpTotp, false);
+                }
+                case AUTHENTICATOR_APP_MFA -> {
+                    return verifyTotpToDisableAuthenticatorAppMfa(user, otpTotp);
+                }
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
+    }
+
+    private Map<String, String> verifyOtpToToggleEmailMfa(UserModel user, String otp, boolean toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateOtpTotp(otp);
+        String encryptedEmailMfaOtpKey = getEncryptedEmailMfaOtpKey(user);
+        Object encryptedOtp = redisService.get(encryptedEmailMfaOtpKey);
+        if (encryptedOtp != null) {
+            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(otp)) {
+                try {
+                    redisService.delete(encryptedEmailMfaOtpKey);
+                } catch (Exception ignored) {
+                }
+                user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+                if (toggle) {
+                    user.addMfaMethod(EMAIL_MFA);
+                } else {
+                    user.removeMfaMethod(EMAIL_MFA);
+                }
+                user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+                accessTokenUtility.revokeTokens(Set.of(user));
+                userRepo.save(user);
+                emailConfirmationOnMfaToggle(user, EMAIL_MFA, toggle);
+                if (toggle) {
+                    return Map.of("message", "Email Mfa enabled successfully. Please log in again to continue");
+                } else {
+                    return Map.of("message", "Email Mfa disabled successfully. Please log in again to continue");
+                }
+            }
+            throw new SimpleBadRequestException("Invalid Otp");
+        }
+        throw new SimpleBadRequestException("Invalid Otp");
+    }
+
+    private void validateOtpTotp(String otpTotp) {
+        try {
+            validateOtp(otpTotp, "Otp/Totp");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid Otp/Totp");
+        }
+    }
+
+    private void emailConfirmationOnMfaToggle(UserModel user, MfaType type, boolean toggle) {
+        if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_MFA_ENABLE_DISABLE.name())) {
+            String action = toggle ? "enabled" : "disabled";
+            mailService.sendEmailAsync(user.getEmail(), "Mfa " + action + " confirmation", "Your " + type + " Mfa has been " + action, SELF_MFA_ENABLE_DISABLE_CONFIRMATION);
+        }
+    }
+
+    private Map<String, String> verifyTotpToEnableAuthenticatorAppMfa(UserModel user, String totp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateOtpTotp(totp);
+        String encryptedSecretKey = getEncryptedSecretKey(user);
+        Object encryptedSecret = redisService.get(encryptedSecretKey);
+        if (encryptedSecret != null) {
+            String secret = genericAesRandomEncryptorDecryptor.decrypt((String) encryptedSecret, String.class);
+            if (verifyTotp(secret, totp)) {
+                try {
+                    redisService.delete(encryptedSecretKey);
+                } catch (Exception ignored) {
+                }
+                user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+                user.addMfaMethod(AUTHENTICATOR_APP_MFA);
+                user.setAuthAppSecret(genericAesRandomEncryptorDecryptor.encrypt(secret));
+                user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+                accessTokenUtility.revokeTokens(Set.of(user));
+                userRepo.save(user);
+                emailConfirmationOnMfaToggle(user, AUTHENTICATOR_APP_MFA, true);
+                return Map.of("message", "Authenticator app Mfa enabled successfully. Please log in again to continue");
+            }
+            throw new SimpleBadRequestException("Invalid Totp");
+        }
+        throw new SimpleBadRequestException("Invalid Totp");
     }
 }

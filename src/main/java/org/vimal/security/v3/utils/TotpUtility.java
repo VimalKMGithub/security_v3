@@ -45,7 +45,7 @@ public final class TotpUtility {
         return String.format("%06d", TOTP_GENERATOR.generateOneTimePassword(decodeBase32Secret(base32Secret), Instant.now()));
     }
 
-    public static boolean verifyTOTP(String base32Secret, String userInputCode) throws InvalidKeyException {
+    public static boolean verifyTotp(String base32Secret, String userInputCode) throws InvalidKeyException {
         return generateTotp(base32Secret).equals(userInputCode);
     }
 
