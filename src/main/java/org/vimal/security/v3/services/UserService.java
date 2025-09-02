@@ -28,13 +28,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
-import static org.vimal.security.v3.enums.FeatureFlags.REGISTRATION_EMAIL_VERIFICATION;
-import static org.vimal.security.v3.enums.FeatureFlags.REGISTRATION_ENABLED;
+import static org.vimal.security.v3.enums.FeatureFlags.*;
 import static org.vimal.security.v3.enums.MailType.LINK;
 import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
-import static org.vimal.security.v3.utils.ValidationUtility.validateInputs;
-import static org.vimal.security.v3.utils.ValidationUtility.validateUuid;
+import static org.vimal.security.v3.utils.ValidationUtility.*;
 
 @Service
 @RequiredArgsConstructor
@@ -164,5 +162,43 @@ public class UserService {
             return genericAesRandomEncryptorDecryptor.decrypt((String) encryptedUserId, UUID.class);
         }
         throw new SimpleBadRequestException("Invalid email verification token");
+    }
+
+    public Map<String, String> resendEmailVerificationLink(String usernameOrEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (unleash.isEnabled(RESEND_REGISTRATION_EMAIL_VERIFICATION.name())) {
+            return proceedResendEmailVerificationLink(getUserByUsernameOrEmail(usernameOrEmail));
+        }
+        throw new ServiceUnavailableException("Resending email verification link is currently disabled. Please try again later");
+    }
+
+    private Map<String, String> proceedResendEmailVerificationLink(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (user.isEmailVerified()) {
+            throw new SimpleBadRequestException("Email is already verified");
+        }
+        mailService.sendEmailAsync(user.getEmail(), "Resending email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
+        return Map.of("message", "Email verification link resent successfully. Please check your email");
+    }
+
+    private UserModel getUserByUsernameOrEmail(String usernameOrEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        try {
+            validateStringIsNonNullAndNotBlank(usernameOrEmail, "Username/email");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid username/email");
+        }
+        UserModel user;
+        if (USERNAME_PATTERN.matcher(usernameOrEmail).matches()) {
+            user = userRepo.findByUsername(genericAesStaticEncryptorDecryptor.encrypt(usernameOrEmail));
+            if (user == null) {
+                throw new SimpleBadRequestException("Invalid username");
+            }
+        } else if (EMAIL_PATTERN.matcher(usernameOrEmail).matches()) {
+            user = userRepo.findByEmail(genericAesStaticEncryptorDecryptor.encrypt(usernameOrEmail));
+            if (user == null) {
+                throw new SimpleBadRequestException("Invalid email");
+            }
+        } else {
+            throw new SimpleBadRequestException("Invalid username/email");
+        }
+        return user;
     }
 }
