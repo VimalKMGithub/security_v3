@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.userdetails.UsernameNotFoundException;
 import org.springframework.stereotype.Service;
@@ -29,6 +30,8 @@ import java.io.IOException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -430,5 +433,67 @@ public class AuthenticationService {
     private Map<String, String> sendEmailOtpToLoginMfa(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         mailService.sendEmailAsync(user.getEmail(), "Otp to verify email Mfa to login", generateOtpForEmailMfa(user), OTP);
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
+    }
+
+    public Map<String, Object> verifyMfaToLogin(String type, String stateToken, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+        validateTypeExistence(type);
+        unleashUtility.isMfaEnabledGlobally();
+        try {
+            validateUuid(stateToken, "State token");
+            validateOtp(otpTotp, "Otp/Totp");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid Otp/Totp or state token");
+        }
+        String encryptedStateTokenMappingKey = getEncryptedStateTokenMappingKey(stateToken);
+        UserModel user = userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(encryptedStateTokenMappingKey)).orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
+        MfaType mfaType = MfaType.valueOf(type.toUpperCase());
+        switch (mfaType) {
+            case EMAIL_MFA -> {
+                if (user.getMfaMethods().isEmpty()) {
+                    if (!unleash.isEnabled(FORCE_MFA.name())) {
+                        throw new SimpleBadRequestException("Email Mfa is not enabled");
+                    }
+                    return verifyEmailOtpToLogin(user, otpTotp, encryptedStateTokenMappingKey);
+                } else if (user.hasMfaMethod(EMAIL_MFA)) {
+                    if (!unleash.isEnabled(MFA_EMAIL.name())) {
+                        throw new ServiceUnavailableException("Email Mfa is disabled globally");
+                    }
+                    return verifyEmailOtpToLogin(user, otpTotp, encryptedStateTokenMappingKey);
+                } else {
+                    throw new SimpleBadRequestException("Email Mfa is not enabled");
+                }
+            }
+            case AUTHENTICATOR_APP_MFA -> {
+                if (!unleash.isEnabled(MFA_AUTHENTICATOR_APP.name())) {
+                    throw new ServiceUnavailableException("Authenticator app Mfa is disabled globally");
+                }
+                if (!user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
+                    throw new SimpleBadRequestException("Authenticator app Mfa is not enabled");
+                }
+                return verifyAuthenticatorAppTotpToLogin(user, otpTotp, encryptedStateTokenMappingKey);
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
+    }
+
+    private Map<String, Object> verifyEmailOtpToLogin(UserModel user, String otp, String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+        if (user.isAccountLocked() && user.getLockedAt().plus(1, ChronoUnit.DAYS).isAfter(Instant.now())) {
+            throw new LockedException("Account is locked due to too many failed mfa attempts. Please try again later");
+        }
+        var encryptedEmailMFAOTPKey = getEncryptedEmailMFAOTPKey(user);
+        var encryptedOTP = redisService.get(encryptedEmailMFAOTPKey);
+        if (encryptedOTP != null) {
+            if (emailOTPRandomConverter.decrypt((String) encryptedOTP, String.class).equals(otp)) {
+                try {
+                    redisService.deleteAll(Set.of(getEncryptedStateTokenKey(user), encryptedStateTokenMappingKey, encryptedEmailMFAOTPKey));
+                } catch (Exception ignored) {
+                }
+                return jwtUtility.generateTokens(user);
+            }
+            handleFailedMFALoginAttempt(user);
+            throw new BadRequestException("Invalid OTP");
+        }
+        handleFailedMFALoginAttempt(user);
+        throw new BadRequestException("Invalid OTP");
     }
 }

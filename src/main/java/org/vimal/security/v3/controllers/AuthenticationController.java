@@ -65,4 +65,9 @@ public class AuthenticationController {
     public ResponseEntity<Map<String, String>> requestToLoginMfa(@RequestParam String type, @RequestParam String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(authenticationService.requestToLoginMfa(type, stateToken));
     }
+
+    @PostMapping("/mfa/verifyTo/login")
+    public ResponseEntity<Map<String, Object>> verifyMfaToLogin(@RequestParam String type, @RequestParam String stateToken, @RequestParam String otpTotp) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return ResponseEntity.ok(authenticationService.verifyMfaToLogin(type, stateToken, otpTotp));
+    }
 }
