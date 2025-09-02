@@ -5,7 +5,7 @@ import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.vimal.security.v3.enums.MailType;
 
-import static org.vimal.security.v3.template.MailTemplate.*;
+import static org.vimal.security.v3.utils.MailTemplateUtility.*;
 
 @Service
 @RequiredArgsConstructor

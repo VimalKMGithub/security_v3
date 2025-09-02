@@ -1,7 +1,7 @@
-package org.vimal.security.v3.template;
+package org.vimal.security.v3.utils;
 
-public final class MailTemplate {
-    private MailTemplate() {
+public final class MailTemplateUtility {
+    private MailTemplateUtility() {
     }
 
     public static final String OTP_TEMPLATE = """
