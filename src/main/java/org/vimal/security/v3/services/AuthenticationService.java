@@ -257,7 +257,7 @@ public class AuthenticationService {
         return genericAesStaticEncryptorDecryptor.encrypt(AUTHENTICATOR_APP_SECRET_PREFIX + user.getId());
     }
 
-    public Map<String, String> verifyToggleMFA(String type, String toggle, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> verifyToggleMfa(String type, String toggle, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         boolean toggleEnabled = validateToggle(toggle);
         UserModel user = getCurrentAuthenticatedUser();
         return proceedToVerifyToggleMfa(user, validateType(type, user, toggleEnabled), toggleEnabled, otpTotp);
