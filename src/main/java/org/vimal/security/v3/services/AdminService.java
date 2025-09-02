@@ -1,13 +1,44 @@
 package org.vimal.security.v3.services;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.getunleash.Unleash;
+import io.getunleash.variant.Variant;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
+import org.vimal.security.v3.dtos.UserCreationDto;
+import org.vimal.security.v3.dtos.UserSummaryToCompanyUsersDto;
+import org.vimal.security.v3.dtos.ValidateInputsForUsersCreationResultDto;
+import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
+import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
+import org.vimal.security.v3.exceptions.ServiceUnavailableException;
+import org.vimal.security.v3.exceptions.SimpleBadRequestException;
+import org.vimal.security.v3.impls.UserDetailsImpl;
+import org.vimal.security.v3.models.RoleModel;
+import org.vimal.security.v3.models.UserModel;
 import org.vimal.security.v3.repos.PermissionRepo;
 import org.vimal.security.v3.repos.RoleRepo;
 import org.vimal.security.v3.repos.UserRepo;
 import org.vimal.security.v3.utils.AccessTokenUtility;
+import org.vimal.security.v3.utils.MapperUtility;
+
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.NoSuchPaddingException;
+import java.security.InvalidAlgorithmParameterException;
+import java.security.InvalidKeyException;
+import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
+import java.util.*;
+
+import static org.vimal.security.v3.enums.FeatureFlags.ALLOW_CREATE_USERS;
+import static org.vimal.security.v3.enums.FeatureFlags.ALLOW_CREATE_USERS_BY_USERS_HAVE_PERMISSION_TO_CREATE_USERS;
+import static org.vimal.security.v3.enums.SystemRoles.ROLE_PRIORITY_MAP;
+import static org.vimal.security.v3.enums.SystemRoles.TOP_ROLES;
+import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUserDetails;
+import static org.vimal.security.v3.utils.ValidationUtility.*;
 
 @Service
 @RequiredArgsConstructor
@@ -26,5 +57,228 @@ public class AdminService {
     private final PermissionRepo permissionRepo;
     private final PasswordEncoder passwordEncoder;
     private final Unleash unleash;
+    private final MapperUtility mapperUtility;
     private final AccessTokenUtility accessTokenUtility;
+    private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
+    private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
+
+    public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
+        String creatorHighestTopRole = getUserHighestTopRole(creator);
+        Variant variant = unleash.getVariant(ALLOW_CREATE_USERS.name());
+        if (entryCheck(variant, creatorHighestTopRole)) {
+            checkUserCanCreateUsers(creatorHighestTopRole);
+            validateDtosSizeForUsersCreation(variant, dtos);
+            ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(dtos, creatorHighestTopRole);
+            Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersCreationResult, creatorHighestTopRole);
+            if (!mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest().body(mapOfErrors);
+            }
+            Set<String> alreadyTakenUsernames = new HashSet<>();
+            for (UserModel user : userRepo.findByUsernameIn(validateInputsForUsersCreationResult.getUsernames())) {
+                alreadyTakenUsernames.add(user.getUsername());
+            }
+            Set<String> alreadyTakenEmails = new HashSet<>();
+            for (UserModel user : userRepo.findByEmailIn(validateInputsForUsersCreationResult.getEmails())) {
+                alreadyTakenEmails.add(user.getEmail());
+            }
+            Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
+            if (!alreadyTakenUsernames.isEmpty()) {
+                mapOfErrors.put("already_taken_usernames", alreadyTakenUsernames);
+            }
+            if (!alreadyTakenEmails.isEmpty()) {
+                mapOfErrors.put("already_taken_emails", alreadyTakenEmails);
+            }
+            if (!validateInputsForUsersCreationResult.getRoles().isEmpty()) {
+                mapOfErrors.put("missing_roles", validateInputsForUsersCreationResult.getRoles());
+            }
+            if (!mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest().body(mapOfErrors);
+            }
+            if (dtos.isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No users to create"));
+            }
+            Set<UserModel> newUsers = new HashSet<>();
+            for (UserCreationDto dto : dtos) {
+                if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
+                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUser().getUsername()));
+                } else {
+                    Set<RoleModel> rolesToAssign = new HashSet<>();
+                    for (String roleName : dto.getRoles()) {
+                        RoleModel role = resolvedRolesMap.get(roleName);
+                        if (role != null) {
+                            rolesToAssign.add(role);
+                        }
+                    }
+                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUser().getUsername()));
+                }
+            }
+            List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
+            for (UserModel userModel : userRepo.saveAll(newUsers)) {
+                users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
+            }
+            return ResponseEntity.ok(Map.of("created_users", users));
+        }
+        throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
+    }
+
+    private String getUserHighestTopRole(UserDetailsImpl userDetails) {
+        String bestRole = null;
+        int bestPriority = Integer.MAX_VALUE;
+        String tempAuthority;
+        Integer tempPriority;
+        for (GrantedAuthority authority : userDetails.getAuthorities()) {
+            tempAuthority = authority.getAuthority();
+            tempPriority = ROLE_PRIORITY_MAP.get(tempAuthority);
+            if (tempPriority != null && tempPriority < bestPriority) {
+                bestPriority = tempPriority;
+                bestRole = tempAuthority;
+            }
+        }
+        return bestRole;
+    }
+
+    private boolean entryCheck(Variant variant, String userHighestTopRole) {
+        return variant.isEnabled() || TOP_ROLES.getFirst().equals(userHighestTopRole);
+    }
+
+    private void checkUserCanCreateUsers(String userHighestTopRole) {
+        if (userHighestTopRole == null && !unleash.isEnabled(ALLOW_CREATE_USERS_BY_USERS_HAVE_PERMISSION_TO_CREATE_USERS.name())) {
+            throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
+        }
+    }
+
+    private void validateDtosSizeForUsersCreation(Variant variant, Set<UserCreationDto> dtos) {
+        if (dtos.isEmpty()) {
+            throw new SimpleBadRequestException("No users to create");
+        }
+        if (variant.isEnabled() && variant.getPayload().isPresent()) {
+            int maxUsersToCreateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
+            if (maxUsersToCreateAtATime < 1) {
+                maxUsersToCreateAtATime = DEFAULT_MAX_USERS_TO_CREATE_AT_A_TIME;
+            }
+            if (dtos.size() > maxUsersToCreateAtATime) {
+                throw new SimpleBadRequestException("Cannot create more than " + maxUsersToCreateAtATime + " users at a time");
+            }
+        } else if (dtos.size() > DEFAULT_MAX_USERS_TO_CREATE_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot create more than " + DEFAULT_MAX_USERS_TO_CREATE_AT_A_TIME + " users at a time");
+        }
+    }
+
+    private ValidateInputsForUsersCreationResultDto validateInputsForUsersCreation(Set<UserCreationDto> dtos, String creatorHighestTopRole) {
+        Set<String> invalidInputs = new HashSet<>();
+        Set<String> usernames = new HashSet<>();
+        Set<String> emails = new HashSet<>();
+        Set<String> duplicateUsernamesInDtos = new HashSet<>();
+        Set<String> duplicateEmailsInDtos = new HashSet<>();
+        Set<String> roles = new HashSet<>();
+        Set<String> restrictedRoles = new HashSet<>();
+        dtos.remove(null);
+        Iterator<UserCreationDto> iterator = dtos.iterator();
+        Set<String> tempSet;
+        UserCreationDto tempDto;
+        boolean removeFromDtos;
+        while (iterator.hasNext()) {
+            removeFromDtos = false;
+            tempDto = iterator.next();
+            tempSet = validateInputs(tempDto);
+            if (!tempSet.isEmpty()) {
+                invalidInputs.addAll(tempSet);
+                removeFromDtos = true;
+            }
+            if (tempDto.getUsername() != null && USERNAME_PATTERN.matcher(tempDto.getUsername()).matches() && !usernames.add(tempDto.getUsername())) {
+                duplicateUsernamesInDtos.add(tempDto.getUsername());
+                removeFromDtos = true;
+            }
+            if (tempDto.getEmail() != null && EMAIL_PATTERN.matcher(tempDto.getEmail()).matches() && !emails.add(tempDto.getEmail())) {
+                duplicateEmailsInDtos.add(tempDto.getEmail());
+                removeFromDtos = true;
+            }
+            if (tempDto.getRoles() != null && !tempDto.getRoles().isEmpty()) {
+                removeFromDtos = sanitizeRoles(tempDto.getRoles(), restrictedRoles, creatorHighestTopRole);
+                if (!tempDto.getRoles().isEmpty()) {
+                    roles.addAll(tempDto.getRoles());
+                }
+            }
+            if (removeFromDtos) {
+                iterator.remove();
+            }
+        }
+        return new ValidateInputsForUsersCreationResultDto(invalidInputs, usernames, emails, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
+    }
+
+    private boolean sanitizeRoles(Set<String> roles, Set<String> restrictedRoles, String userHighestTopRole) {
+        roles.remove(null);
+        Iterator<String> iterator = roles.iterator();
+        boolean removeFromDtos = false;
+        String temp;
+        while (iterator.hasNext()) {
+            temp = iterator.next();
+            if (temp.isBlank()) {
+                iterator.remove();
+            } else {
+                if (!TOP_ROLES.getFirst().equals(userHighestTopRole)) {
+                    if (ROLE_PRIORITY_MAP.containsKey(temp)) {
+                        if (userHighestTopRole == null || ROLE_PRIORITY_MAP.get(temp) <= ROLE_PRIORITY_MAP.get(userHighestTopRole)) {
+                            restrictedRoles.add(temp);
+                            removeFromDtos = true;
+                        }
+                    }
+                }
+            }
+        }
+        return removeFromDtos;
+    }
+
+    private Map<String, Object> errorsStuffingIfAny(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult, String userHighestTopRole) {
+        Map<String, Object> mapOfErrors = new HashMap<>();
+        if (!validateInputsForUsersCreationResult.getInvalidInputs().isEmpty()) {
+            mapOfErrors.put("invalid_inputs", validateInputsForUsersCreationResult.getInvalidInputs());
+        }
+        if (!validateInputsForUsersCreationResult.getDuplicateUsernamesInDtos().isEmpty()) {
+            mapOfErrors.put("duplicate_usernames_in_request", validateInputsForUsersCreationResult.getDuplicateUsernamesInDtos());
+        }
+        if (!validateInputsForUsersCreationResult.getDuplicateEmailsInDtos().isEmpty()) {
+            mapOfErrors.put("duplicate_emails_in_request", validateInputsForUsersCreationResult.getDuplicateEmailsInDtos());
+        }
+        if (!validateInputsForUsersCreationResult.getRestrictedRoles().isEmpty()) {
+            mapOfErrors.put("not_allowed_to_assign_roles", validateInputsForUsersCreationResult.getRestrictedRoles());
+        }
+        return mapOfErrors;
+    }
+
+    private Map<String, RoleModel> resolveRoles(Set<String> roles) {
+        if (roles == null || roles.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<String, RoleModel> resolvedRolesMap = new HashMap<>();
+        for (RoleModel role : roleRepo.findAllById(roles)) {
+            roles.remove(role.getRoleName());
+            resolvedRolesMap.put(role.getRoleName(), role);
+        }
+        return resolvedRolesMap;
+    }
+
+    private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String creator) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedEmail = genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail());
+        return UserModel.builder()
+                .username(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))
+                .email(encryptedEmail)
+                .realEmail(encryptedEmail)
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .firstName(dto.getFirstName())
+                .middleName(dto.getMiddleName())
+                .lastName(dto.getLastName())
+                .roles(roles)
+                .emailVerified(dto.isEmailVerified())
+                .accountEnabled(dto.isAccountEnabled())
+                .accountLocked(dto.isAccountLocked())
+                .lockedAt(dto.isAccountLocked() ? Instant.now() : null)
+                .createdBy(genericAesRandomEncryptorDecryptor.encrypt(creator))
+                .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(creator))
+                .accountDeleted(dto.isAccountDeleted())
+                .accountDeletedAt(dto.isAccountDeleted() ? Instant.now() : null)
+                .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(creator) : null)
+                .build();
+    }
 }
