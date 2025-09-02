@@ -392,11 +392,83 @@ public class UserService {
 
     private String generateOtpForPasswordChange(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String otp = generateOtp();
-        redisService.save(getEncryptedPasswordChangeOtPKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
+        redisService.save(getEncryptedPasswordChangeOtpKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
         return otp;
     }
 
-    private String getEncryptedPasswordChangeOtPKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedPasswordChangeOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_FOR_PASSWORD_CHANGE_PREFIX + user.getId());
+    }
+
+    public ResponseEntity<Map<String, Object>> verifyChangePassword(ChangePwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateTypeExistence(dto.getMethod());
+        Set<String> invalidInputs = validateInputsPasswordAndConfirmPassword(dto);
+        try {
+            validateOtp(dto.getOtpTotp(), "Otp/Totp");
+        } catch (SimpleBadRequestException ex) {
+            invalidInputs.add("Invalid Otp/Totp");
+        }
+        if (!invalidInputs.isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("invalid_inputs", invalidInputs));
+        }
+        unleashUtility.isMfaEnabledGlobally();
+        UserModel user = getCurrentAuthenticatedUser();
+        MfaType methodType = MfaType.valueOf(dto.getMethod().toUpperCase());
+        switch (methodType) {
+            case EMAIL_MFA -> {
+                if (user.getMfaMethods().isEmpty()) {
+                    if (!unleash.isEnabled(FORCE_MFA.name())) {
+                        throw new SimpleBadRequestException("Email Mfa is not enabled");
+                    }
+                    return ResponseEntity.ok(verifyEmailOtpToChangePassword(user, dto));
+                } else if (user.hasMfaMethod(EMAIL_MFA)) {
+                    if (!unleash.isEnabled(MFA_EMAIL.name())) {
+                        throw new ServiceUnavailableException("Email Mfa is disabled globally");
+                    }
+                    return ResponseEntity.ok(verifyEmailOtpToChangePassword(user, dto));
+                } else {
+                    throw new SimpleBadRequestException("Email Mfa is not enabled");
+                }
+            }
+            case AUTHENTICATOR_APP_MFA -> {
+                if (!unleash.isEnabled(MFA_AUTHENTICATOR_APP.name())) {
+                    throw new ServiceUnavailableException("Authenticator app Mfa is disabled globally");
+                }
+                if (!user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
+                    throw new SimpleBadRequestException("Authenticator app Mfa is not enabled");
+                }
+                return ResponseEntity.ok(verifyAuthenticatorAppTotpToChangePassword(user, dto));
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + dto.getMethod() + ". Supported types: " + MFA_METHODS);
+    }
+
+    private Map<String, Object> verifyEmailOtpToChangePassword(UserModel user, ChangePwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedPasswordChangeOtpKey = getEncryptedPasswordChangeOtpKey(user);
+        Object encryptedOtp = redisService.get(encryptedPasswordChangeOtpKey);
+        if (encryptedOtp != null) {
+            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(dto.getOtpTotp())) {
+                try {
+                    redisService.delete(encryptedPasswordChangeOtpKey);
+                } catch (Exception ignored) {
+                }
+                user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+                selfChangePassword(user, dto.getPassword());
+                emailConfirmationOnSelfPasswordChange(user);
+                return Map.of("message", "Password change successful");
+            }
+            throw new SimpleBadRequestException("Invalid Otp");
+        }
+        throw new SimpleBadRequestException("Invalid Otp");
+    }
+
+    private Map<String, Object> verifyAuthenticatorAppTotpToChangePassword(UserModel user, ChangePwdDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), dto.getOtpTotp())) {
+            throw new SimpleBadRequestException("Invalid Totp");
+        }
+        selfChangePassword(user, dto.getPassword());
+        emailConfirmationOnSelfPasswordChange(user);
+        return Map.of("message", "Password change successful");
     }
 }
