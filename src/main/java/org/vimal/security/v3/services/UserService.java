@@ -34,6 +34,7 @@ import static org.vimal.security.v3.enums.MailType.LINK;
 import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.validateInputs;
+import static org.vimal.security.v3.utils.ValidationUtility.validateUuid;
 
 @Service
 @RequiredArgsConstructor
@@ -127,5 +128,40 @@ public class UserService {
     public UserSummaryDto getSelfDetails() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UserModel user = userRepo.findById(getCurrentAuthenticatedUser().getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
         return mapperUtility.toUserSummaryDto(user);
+    }
+
+    public Map<String, Object> verifyEmail(String emailVerificationToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        try {
+            validateUuid(emailVerificationToken, "Email verification token");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid email verification token");
+        }
+        String encryptedEmailVerificationTokenMappingKey = getEncryptedEmailVerificationTokenMappingKey(emailVerificationToken);
+        UserModel user = userRepo.findById(getUserIdFromEncryptedEmailVerificationTokenMappingKey(encryptedEmailVerificationTokenMappingKey)).orElseThrow(() -> new SimpleBadRequestException("Invalid email verification token"));
+        if (user.isEmailVerified()) {
+            throw new SimpleBadRequestException("Email is already verified");
+        }
+        user.setEmailVerified(true);
+        user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+        try {
+            redisService.deleteAll(Set.of(getEncryptedEmailVerificationTokenKey(user), encryptedEmailVerificationTokenMappingKey));
+        } catch (Exception ignored) {
+        }
+        return Map.of(
+                "message", "Email verification successful",
+                "user", mapperUtility.toUserSummaryDto(userRepo.save(user))
+        );
+    }
+
+    private String getEncryptedEmailVerificationTokenMappingKey(String emailVerificationToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_MAPPING_PREFIX + emailVerificationToken);
+    }
+
+    private UUID getUserIdFromEncryptedEmailVerificationTokenMappingKey(String encryptedEmailVerificationTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Object encryptedUserId = redisService.get(encryptedEmailVerificationTokenMappingKey);
+        if (encryptedUserId != null) {
+            return genericAesRandomEncryptorDecryptor.decrypt((String) encryptedUserId, UUID.class);
+        }
+        throw new SimpleBadRequestException("Invalid email verification token");
     }
 }
