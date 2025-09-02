@@ -1,7 +1,7 @@
 package org.vimal.security.v3.utils;
 
-import org.springframework.security.authentication.AuthenticationCredentialsNotFoundException;
 import org.springframework.security.core.Authentication;
+import org.vimal.security.v3.exceptions.UnauthorizedException;
 import org.vimal.security.v3.impls.UserDetailsImpl;
 import org.vimal.security.v3.models.UserModel;
 
@@ -24,6 +24,6 @@ public final class UserUtility {
         if (authentication != null && authentication.isAuthenticated() && authentication instanceof UserDetailsImpl) {
             return authentication;
         }
-        throw new AuthenticationCredentialsNotFoundException("User not authenticated");
+        throw new UnauthorizedException("User not authenticated");
     }
 }
