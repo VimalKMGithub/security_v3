@@ -41,4 +41,14 @@ public class UserController {
     public ResponseEntity<Map<String, String>> resendEmailVerificationLink(@RequestParam String usernameOrEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(userService.resendEmailVerificationLink(usernameOrEmail));
     }
+
+    @PostMapping("/forgot/password")
+    public ResponseEntity<Map<String, Object>> forgotPassword(@RequestParam String usernameOrEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return userService.forgotPassword(usernameOrEmail);
+    }
+
+    @PostMapping("/forgot/password/methodSelection")
+    public ResponseEntity<Map<String, String>> forgotPasswordMethodSelection(@RequestParam String usernameOrEmail, @RequestParam String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return ResponseEntity.ok(userService.forgotPasswordMethodSelection(usernameOrEmail, method));
+    }
 }

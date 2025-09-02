@@ -10,6 +10,7 @@ import org.vimal.security.v3.dtos.RegistrationDto;
 import org.vimal.security.v3.dtos.UserSummaryDto;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
+import org.vimal.security.v3.enums.MfaType;
 import org.vimal.security.v3.exceptions.ServiceUnavailableException;
 import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 import org.vimal.security.v3.models.UserModel;
@@ -30,7 +31,12 @@ import java.util.UUID;
 
 import static org.vimal.security.v3.enums.FeatureFlags.*;
 import static org.vimal.security.v3.enums.MailType.LINK;
+import static org.vimal.security.v3.enums.MailType.OTP;
+import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
 import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
+import static org.vimal.security.v3.utils.MfaUtility.MFA_METHODS;
+import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
+import static org.vimal.security.v3.utils.OtpUtility.generateOtp;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
@@ -200,5 +206,46 @@ public class UserService {
             throw new SimpleBadRequestException("Invalid username/email");
         }
         return user;
+    }
+
+    public ResponseEntity<Map<String, Object>> forgotPassword(String usernameOrEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserModel user = getUserByUsernameOrEmail(usernameOrEmail);
+        if (!user.isEmailVerified()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is not verified. Please verify your email before resetting password"));
+        }
+        Set<MfaType> methods = user.getMfaMethods();
+        methods.add(EMAIL_MFA);
+        return ResponseEntity.ok(Map.of("message", "Please select a method to receive for password reset", "methods", methods));
+    }
+
+    public Map<String, String> forgotPasswordMethodSelection(String usernameOrEmail, String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateTypeExistence(method);
+        MfaType methodType = MfaType.valueOf(method.toUpperCase());
+        UserModel user = getUserByUsernameOrEmail(usernameOrEmail);
+        Set<MfaType> methods = user.getMfaMethods();
+        methods.add(EMAIL_MFA);
+        if (!methods.contains(methodType)) {
+            throw new SimpleBadRequestException("Mfa method: '" + method + "' is not enabled for user");
+        }
+        switch (methodType) {
+            case EMAIL_MFA -> {
+                mailService.sendEmailAsync(user.getEmail(), "Otp for resetting password", generateOtpForForgotPassword(user), OTP);
+                return Map.of("Message", "Otp sent to your email. Please check your email to reset your password");
+            }
+            case AUTHENTICATOR_APP_MFA -> {
+                return Map.of("message", "Please proceed to verify Totp");
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + method + ". Supported types: " + MFA_METHODS);
+    }
+
+    private String generateOtpForForgotPassword(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String otp = generateOtp();
+        redisService.save(getEncryptedForgotPasswordOtpKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
+        return otp;
+    }
+
+    private String getEncryptedForgotPasswordOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(FORGOT_PASSWORD_OTP_PREFIX + user.getId());
     }
 }
