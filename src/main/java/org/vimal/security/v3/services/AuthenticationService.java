@@ -76,12 +76,12 @@ public class AuthenticationService {
         }
         UserModel user;
         if (EMAIL_PATTERN.matcher(usernameOrEmail).matches()) {
-            user = userRepo.findByEmail(usernameOrEmail);
+            user = userRepo.findByEmail(genericAesStaticEncryptorDecryptor.encrypt(usernameOrEmail));
             if (user == null) {
                 throw new BadCredentialsException("Invalid credentials");
             }
         } else if (USERNAME_PATTERN.matcher(usernameOrEmail).matches()) {
-            user = userRepo.findByUsername(usernameOrEmail);
+            user = userRepo.findByUsername(genericAesStaticEncryptorDecryptor.encrypt(usernameOrEmail));
             if (user == null) {
                 throw new BadCredentialsException("Invalid credentials");
             }
