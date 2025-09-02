@@ -759,7 +759,7 @@ public class UserService {
         if (selfUpdationResult.isModified()) {
             user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
             if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_UPDATE_DETAILS.name())) {
-                mailService.sendEmailAsync(user.getEmail(), "Account details updated confirmation", "", SELF_UPDATE_DETAILS_CONFIRMATION);
+                mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Account details updated confirmation", "", SELF_UPDATE_DETAILS_CONFIRMATION);
             }
             Map<String, Object> response = new HashMap<>();
             if (selfUpdationResult.isShouldRemoveTokens()) {
