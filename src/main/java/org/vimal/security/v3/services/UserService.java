@@ -75,7 +75,7 @@ public class UserService {
             user.setEmailVerified(!shouldVerifyRegisteredEmail);
             Map<String, Object> response = new HashMap<>();
             if (shouldVerifyRegisteredEmail) {
-                mailService.sendEmailAsync(user.getEmail(), "Email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
+                mailService.sendEmailAsync(dto.getEmail(), "Email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
                 response.put("message", "Registration successful. Please check your email for verification link");
             } else {
                 response.put("message", "Registration successful");
