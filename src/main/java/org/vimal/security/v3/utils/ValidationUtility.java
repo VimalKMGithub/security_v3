@@ -1,7 +1,10 @@
 package org.vimal.security.v3.utils;
 
+import org.vimal.security.v3.dtos.RegistrationDto;
 import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 
+import java.util.HashSet;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 public final class ValidationUtility {
@@ -55,5 +58,100 @@ public final class ValidationUtility {
         if (!NUMBER_ONLY_PATTERN.matcher(otp).matches()) {
             throw new SimpleBadRequestException(fieldName + "must contain numbers only");
         }
+    }
+
+    public static void validateUsername(String username) {
+        validateStringIsNonNullAndNotBlank(username, "Username");
+        if (username.length() < 3 || username.length() > 100) {
+            throw new SimpleBadRequestException("Username must be between 3 and 100 characters long");
+        }
+        if (!USERNAME_PATTERN.matcher(username).matches()) {
+            throw new SimpleBadRequestException("Username: '" + username + "' is invalid as it can only contain letters, digits, underscores, and hyphens");
+        }
+    }
+
+    public static void validateEmail(String email) {
+        validateStringIsNonNullAndNotBlank(email, "Email");
+        if (email.length() > 320) {
+            throw new SimpleBadRequestException("Email must be at most 320 characters long");
+        }
+        if (!EMAIL_PATTERN.matcher(email).matches()) {
+            throw new SimpleBadRequestException("Email: '" + email + "' is of invalid format");
+        }
+    }
+
+    public static void validateFirstName(String firstName) {
+        validateStringIsNonNullAndNotBlank(firstName, "First name");
+        if (firstName.length() > 50) {
+            throw new SimpleBadRequestException("First name must be at most 50 characters long");
+        }
+        if (!NAME_PATTERN.matcher(firstName).matches()) {
+            throw new SimpleBadRequestException("First name: '" + firstName + "' is invalid as it can only contain letters, spaces, periods, apostrophes, and hyphens");
+        }
+    }
+
+    public static void validateMiddleName(String middleName) {
+        if (middleName == null) {
+            return;
+        }
+        if (middleName.isBlank()) {
+            throw new SimpleBadRequestException("Middle name cannot be blank if provided");
+        }
+        if (middleName.length() > 50) {
+            throw new SimpleBadRequestException("Middle name must be at most 50 characters long");
+        }
+        if (!NAME_PATTERN.matcher(middleName).matches()) {
+            throw new SimpleBadRequestException("Middle name: '" + middleName + "' is invalid as it can only contain letters, spaces, periods, apostrophes, and hyphens");
+        }
+    }
+
+    public static void validateLastName(String lastName) {
+        if (lastName == null) {
+            return;
+        }
+        if (lastName.isBlank()) {
+            throw new SimpleBadRequestException("Last name cannot be blank if provided");
+        }
+        if (lastName.length() > 50) {
+            throw new SimpleBadRequestException("Last name must be at most 50 characters long");
+        }
+        if (!NAME_PATTERN.matcher(lastName).matches()) {
+            throw new SimpleBadRequestException("Last name: '" + lastName + "' is invalid as it can only contain letters, spaces, periods, apostrophes, and hyphens");
+        }
+    }
+
+    public static Set<String> validateInputs(RegistrationDto dto) {
+        Set<String> validationErrors = new HashSet<>();
+        try {
+            validateUsername(dto.getUsername());
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add(ex.getMessage());
+        }
+        try {
+            validatePassword(dto.getPassword());
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add(ex.getMessage());
+        }
+        try {
+            validateEmail(dto.getEmail());
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add(ex.getMessage());
+        }
+        try {
+            validateFirstName(dto.getFirstName());
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add(ex.getMessage());
+        }
+        try {
+            validateMiddleName(dto.getMiddleName());
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add(ex.getMessage());
+        }
+        try {
+            validateLastName(dto.getLastName());
+        } catch (SimpleBadRequestException ex) {
+            validationErrors.add(ex.getMessage());
+        }
+        return validationErrors;
     }
 }
