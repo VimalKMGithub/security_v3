@@ -140,4 +140,13 @@ public class AuthenticationService {
         accessTokenUtility.revokeTokens(Set.of(user));
         return Map.of("message", "Logout successful");
     }
+
+    public Map<String, Object> refreshAccessToken(String refreshToken) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        try {
+            validateUuid(refreshToken, "Refresh token");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid refresh token");
+        }
+        return accessTokenUtility.refreshAccessToken(refreshToken);
+    }
 }

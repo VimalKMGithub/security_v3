@@ -35,4 +35,11 @@ public final class ValidationUtility {
             throw new SimpleBadRequestException("Password: '" + password + "' is invalid as it must contain at least one digit, one lowercase letter, one uppercase letter, and one special character");
         }
     }
+
+    public static void validateUuid(String uuid, String fieldName) {
+        validateStringIsNonNullAndNotBlank(uuid, fieldName);
+        if (!UUID_PATTERN.matcher(uuid).matches()) {
+            throw new SimpleBadRequestException(fieldName + ": '" + uuid + "' is of invalid format");
+        }
+    }
 }
