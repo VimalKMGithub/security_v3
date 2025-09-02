@@ -149,4 +149,9 @@ public class AuthenticationService {
         }
         return accessTokenUtility.refreshAccessToken(refreshToken);
     }
+
+    public Map<String, String> revokeAccessToken() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        accessTokenUtility.revokeAccessToken(getCurrentAuthenticatedUser());
+        return Map.of("message", "Access token revoked successfully");
+    }
 }
