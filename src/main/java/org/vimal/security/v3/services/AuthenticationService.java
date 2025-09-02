@@ -477,23 +477,45 @@ public class AuthenticationService {
     }
 
     private Map<String, Object> verifyEmailOtpToLogin(UserModel user, String otp, String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+        checkLockedStatus(user);
+        String encryptedEmailMfaOtpKey = getEncryptedEmailMfaOtpKey(user);
+        Object encryptedOtp = redisService.get(encryptedEmailMfaOtpKey);
+        if (encryptedOtp != null) {
+            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(otp)) {
+                try {
+                    redisService.deleteAll(Set.of(getEncryptedStateTokenKey(user), encryptedStateTokenMappingKey, encryptedEmailMfaOtpKey));
+                } catch (Exception ignored) {
+                }
+                return accessTokenUtility.generateTokens(user);
+            }
+            handleFailedMfaLoginAttempt(user);
+            throw new SimpleBadRequestException("Invalid Otp");
+        }
+        handleFailedMfaLoginAttempt(user);
+        throw new SimpleBadRequestException("Invalid Otp");
+    }
+
+    private void checkLockedStatus(UserModel user) {
         if (user.isAccountLocked() && user.getLockedAt().plus(1, ChronoUnit.DAYS).isAfter(Instant.now())) {
             throw new LockedException("Account is locked due to too many failed mfa attempts. Please try again later");
         }
-        var encryptedEmailMFAOTPKey = getEncryptedEmailMFAOTPKey(user);
-        var encryptedOTP = redisService.get(encryptedEmailMFAOTPKey);
-        if (encryptedOTP != null) {
-            if (emailOTPRandomConverter.decrypt((String) encryptedOTP, String.class).equals(otp)) {
-                try {
-                    redisService.deleteAll(Set.of(getEncryptedStateTokenKey(user), encryptedStateTokenMappingKey, encryptedEmailMFAOTPKey));
-                } catch (Exception ignored) {
-                }
-                return jwtUtility.generateTokens(user);
+    }
+
+    private void handleFailedMfaLoginAttempt(UserModel user) {
+        user.recordFailedMfaAttempt();
+        userRepo.save(user);
+    }
+
+    private Map<String, Object> verifyAuthenticatorAppTotpToLogin(UserModel user, String totp, String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+        checkLockedStatus(user);
+        if (verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), totp)) {
+            try {
+                redisService.deleteAll(Set.of(getEncryptedStateTokenKey(user), encryptedStateTokenMappingKey));
+            } catch (Exception ignored) {
             }
-            handleFailedMFALoginAttempt(user);
-            throw new BadRequestException("Invalid OTP");
+            return accessTokenUtility.generateTokens(user);
         }
-        handleFailedMFALoginAttempt(user);
-        throw new BadRequestException("Invalid OTP");
+        handleFailedMfaLoginAttempt(user);
+        throw new SimpleBadRequestException("Invalid Totp");
     }
 }
