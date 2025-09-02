@@ -371,4 +371,64 @@ public class AuthenticationService {
         emailConfirmationOnMfaToggle(user, AUTHENTICATOR_APP_MFA, false);
         return Map.of("message", "Authenticator app Mfa disabled successfully. Please log in again to continue");
     }
+
+    public Map<String, String> requestToLoginMfa(String type, String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateTypeExistence(type);
+        unleashUtility.isMfaEnabledGlobally();
+        try {
+            validateUuid(stateToken, "State token");
+        } catch (SimpleBadRequestException ex) {
+            throw new SimpleBadRequestException("Invalid state token");
+        }
+        UserModel user = getUser(stateToken);
+        MfaType mfaType = MfaType.valueOf(type.toUpperCase());
+        switch (mfaType) {
+            case EMAIL_MFA -> {
+                if (user.getMfaMethods().isEmpty()) {
+                    if (!unleash.isEnabled(FORCE_MFA.name())) {
+                        throw new SimpleBadRequestException("Email Mfa is not enabled");
+                    }
+                    return sendEmailOtpToLoginMfa(user);
+                } else if (user.hasMfaMethod(EMAIL_MFA)) {
+                    if (!unleash.isEnabled(MFA_EMAIL.name())) {
+                        throw new ServiceUnavailableException("Email Mfa is disabled globally");
+                    }
+                    return sendEmailOtpToLoginMfa(user);
+                } else {
+                    throw new SimpleBadRequestException("Email Mfa is not enabled");
+                }
+            }
+            case AUTHENTICATOR_APP_MFA -> {
+                if (!unleash.isEnabled(MFA_AUTHENTICATOR_APP.name())) {
+                    throw new ServiceUnavailableException("Authenticator app Mfa is disabled globally");
+                }
+                if (!user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
+                    throw new SimpleBadRequestException("Authenticator app Mfa is not enabled");
+                }
+                return Map.of("message", "Please proceed to verify Totp");
+            }
+        }
+        throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
+    }
+
+    private UserModel getUser(String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(getEncryptedStateTokenMappingKey(stateToken))).orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
+    }
+
+    private UUID getUserIdFromEncryptedStateTokenMappingKey(String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Object encryptedUserId = redisService.get(encryptedStateTokenMappingKey);
+        if (encryptedUserId != null) {
+            return genericAesRandomEncryptorDecryptor.decrypt((String) encryptedUserId, UUID.class);
+        }
+        throw new SimpleBadRequestException("Invalid state token");
+    }
+
+    private String getEncryptedStateTokenMappingKey(String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(STATE_TOKEN_MAPPING_PREFIX + stateToken);
+    }
+
+    private Map<String, String> sendEmailOtpToLoginMfa(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        mailService.sendEmailAsync(user.getEmail(), "Otp to verify email Mfa to login", generateOtpForEmailMfa(user), OTP);
+        return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
+    }
 }
