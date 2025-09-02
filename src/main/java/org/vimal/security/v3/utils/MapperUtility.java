@@ -3,11 +3,13 @@ package org.vimal.security.v3.utils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
+import org.vimal.security.v3.dtos.RoleSummaryDto;
 import org.vimal.security.v3.dtos.UserSummaryDto;
 import org.vimal.security.v3.dtos.UserSummaryToCompanyUsersDto;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
 import org.vimal.security.v3.enums.MfaType;
+import org.vimal.security.v3.models.PermissionModel;
 import org.vimal.security.v3.models.RoleModel;
 import org.vimal.security.v3.models.UserModel;
 
@@ -78,16 +80,20 @@ public class MapperUtility {
         dto.setFailedMfaAttempts(user.getFailedMfaAttempts());
     }
 
-//    public static RoleSummaryDto toRoleSummaryDto(RoleModel role) {
-//        var dto = new RoleSummaryDto();
-//        dto.setRoleName(role.getRoleName());
-//        dto.setDescription(role.getDescription());
-//        dto.setCreatedBy(role.getCreatedBy());
-//        dto.setUpdatedBy(role.getUpdatedBy());
-//        dto.setPermissions(role.getPermissions().stream().map(PermissionModel::getPermissionName).collect(Collectors.toSet()));
-//        dto.setCreatedAt(role.getCreatedAt());
-//        dto.setUpdatedAt(role.getUpdatedAt());
-//        dto.setSystemRole(role.isSystemRole());
-//        return dto;
-//    }
+    public RoleSummaryDto toRoleSummaryDto(RoleModel role) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        RoleSummaryDto dto = new RoleSummaryDto();
+        dto.setRoleName(role.getRoleName());
+        dto.setDescription(role.getDescription());
+        dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(role.getCreatedBy(), String.class));
+        dto.setUpdatedBy(genericAesRandomEncryptorDecryptor.decrypt(role.getUpdatedBy(), String.class));
+        Set<String> permissions = new HashSet<>();
+        for (PermissionModel permission : role.getPermissions()) {
+            permissions.add(permission.getPermissionName());
+        }
+        dto.setPermissions(permissions);
+        dto.setCreatedAt(role.getCreatedAt());
+        dto.setUpdatedAt(role.getUpdatedAt());
+        dto.setSystemRole(role.isSystemRole());
+        return dto;
+    }
 }
