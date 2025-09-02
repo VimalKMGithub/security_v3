@@ -10,8 +10,11 @@ import org.vimal.security.v3.dtos.RegistrationDto;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
 import org.vimal.security.v3.exceptions.ServiceUnavailableException;
+import org.vimal.security.v3.exceptions.SimpleBadRequestException;
+import org.vimal.security.v3.models.UserModel;
 import org.vimal.security.v3.repos.UserRepo;
 import org.vimal.security.v3.utils.AccessTokenUtility;
+import org.vimal.security.v3.utils.MapperUtility;
 
 import javax.crypto.BadPaddingException;
 import javax.crypto.IllegalBlockSizeException;
@@ -19,9 +22,16 @@ import javax.crypto.NoSuchPaddingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
+import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
+import static org.vimal.security.v3.enums.FeatureFlags.REGISTRATION_EMAIL_VERIFICATION;
 import static org.vimal.security.v3.enums.FeatureFlags.REGISTRATION_ENABLED;
+import static org.vimal.security.v3.enums.MailType.LINK;
+import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
+import static org.vimal.security.v3.utils.ValidationUtility.validateInputs;
 
 @Service
 @RequiredArgsConstructor
@@ -40,34 +50,75 @@ public class UserService {
     private final RedisService redisService;
     private final Unleash unleash;
     private final AccessTokenUtility accessTokenUtility;
+    private final MapperUtility mapperUtility;
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
     public ResponseEntity<Map<String, Object>> register(RegistrationDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(REGISTRATION_ENABLED.name())) {
-//            var invalidInputs = UserUtility.validateInputs(dto);
-//            if (!invalidInputs.isEmpty()) {
-//                return ResponseEntity.badRequest().body(Map.of("invalid_inputs", invalidInputs));
-//            }
-//            if (userRepo.existsByUsername(dto.getUsername())) {
-//                throw new BadRequestException("Username: '" + dto.getUsername() + "' is already taken");
-//            }
-//            if (userRepo.existsByEmail(dto.getEmail())) {
-//                throw new BadRequestException("Email: '" + dto.getEmail() + "' is already registered");
-//            }
-//            var sanitizedEmail = sanitizeEmail(dto.getEmail());
-//            if (userRepo.existsByRealEmail(sanitizedEmail)) {
-//                throw new BadRequestException("Alias version of email: '" + dto.getEmail() + "' is already registered");
-//            }
-//            var user = toUserModel(dto, sanitizedEmail);
-//            var shouldVerifyRegisteredEmail = unleash.isEnabled(FeatureFlags.REGISTRATION_EMAIL_VERIFICATION.name());
-//            user.setEmailVerified(!shouldVerifyRegisteredEmail);
-//            if (shouldVerifyRegisteredEmail) {
-//                mailService.sendEmailAsync(user.getEmail(), "Email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), MailService.MailType.LINK);
-//                return ResponseEntity.ok(Map.of("message", "Registration successful. Please check your email for verification link", "user", userRepo.save(user)));
-//            }
-//            return ResponseEntity.ok(Map.of("message", "Registration successful", "user", userRepo.save(user)));
+            Set<String> invalidInputs = validateInputs(dto);
+            if (!invalidInputs.isEmpty()) {
+                return ResponseEntity.badRequest().body(Map.of("invalid_inputs", invalidInputs));
+            }
+            if (userRepo.existsByUsername(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))) {
+                throw new SimpleBadRequestException("Username: '" + dto.getUsername() + "' is already taken");
+            }
+            if (userRepo.existsByEmail(genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail()))) {
+                throw new SimpleBadRequestException("Email: '" + dto.getEmail() + "' is already taken");
+            }
+            String normalizedEmail = normalizeEmail(dto.getEmail());
+            if (userRepo.existsByRealEmail(genericAesStaticEncryptorDecryptor.encrypt(normalizedEmail))) {
+                throw new SimpleBadRequestException("Alias version of email: '" + dto.getEmail() + "' is already taken");
+            }
+            UserModel user = toUserModel(dto, normalizedEmail);
+            boolean shouldVerifyRegisteredEmail = unleash.isEnabled(REGISTRATION_EMAIL_VERIFICATION.name());
+            user.setEmailVerified(!shouldVerifyRegisteredEmail);
+            Map<String, Object> response = new HashMap<>();
+            if (shouldVerifyRegisteredEmail) {
+                mailService.sendEmailAsync(user.getEmail(), "Email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
+                response.put("message", "Registration successful. Please check your email for verification link");
+            } else {
+                response.put("message", "Registration successful");
+            }
+            response.put("user", mapperUtility.toUserSummaryDto(userRepo.save(user)));
+            return ResponseEntity.ok(response);
         }
         throw new ServiceUnavailableException("Registration is currently disabled. Please try again later");
+    }
+
+    private UserModel toUserModel(RegistrationDto dto, String normalizedEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return UserModel.builder()
+                .username(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))
+                .email(genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail()))
+                .realEmail(genericAesStaticEncryptorDecryptor.encrypt(normalizedEmail))
+                .password(passwordEncoder.encode(dto.getPassword()))
+                .firstName(dto.getFirstName())
+                .middleName(dto.getMiddleName())
+                .lastName(dto.getLastName())
+                .createdBy(genericAesRandomEncryptorDecryptor.encrypt("SELF"))
+                .updatedBy(genericAesRandomEncryptorDecryptor.encrypt("SELF"))
+                .build();
+    }
+
+    private UUID generateEmailVerificationToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedEmailVerificationTokenKey = getEncryptedEmailVerificationTokenKey(user);
+        Object existingEncryptedEmailVerificationToken = redisService.get(encryptedEmailVerificationTokenKey);
+        if (existingEncryptedEmailVerificationToken != null) {
+            return genericAesRandomEncryptorDecryptor.decrypt((String) existingEncryptedEmailVerificationToken, UUID.class);
+        }
+        UUID emailVerificationToken = UUID.randomUUID();
+        String encryptedEmailVerificationTokenMappingKey = genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_MAPPING_PREFIX + emailVerificationToken);
+        try {
+            redisService.save(encryptedEmailVerificationTokenKey, genericAesRandomEncryptorDecryptor.encrypt(emailVerificationToken));
+            redisService.save(encryptedEmailVerificationTokenMappingKey, genericAesRandomEncryptorDecryptor.encrypt(user.getId()));
+            return emailVerificationToken;
+        } catch (Exception ex) {
+            redisService.deleteAll(Set.of(encryptedEmailVerificationTokenKey, encryptedEmailVerificationTokenMappingKey));
+            throw new RuntimeException("Failed to generate email verification token", ex);
+        }
+    }
+
+    private String getEncryptedEmailVerificationTokenKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_PREFIX + user.getId());
     }
 }
