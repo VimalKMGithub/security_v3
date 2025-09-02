@@ -356,4 +356,19 @@ public class AuthenticationService {
         }
         throw new SimpleBadRequestException("Invalid Totp");
     }
+
+    private Map<String, String> verifyTotpToDisableAuthenticatorAppMfa(UserModel user, String totp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        validateOtpTotp(totp);
+        user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), totp)) {
+            throw new SimpleBadRequestException("Invalid Totp");
+        }
+        user.removeMfaMethod(AUTHENTICATOR_APP_MFA);
+        user.setAuthAppSecret(null);
+        user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+        accessTokenUtility.revokeTokens(Set.of(user));
+        userRepo.save(user);
+        emailConfirmationOnMfaToggle(user, AUTHENTICATOR_APP_MFA, false);
+        return Map.of("message", "Authenticator app Mfa disabled successfully. Please log in again to continue");
+    }
 }
