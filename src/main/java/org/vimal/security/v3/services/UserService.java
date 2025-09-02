@@ -6,10 +6,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
-import org.vimal.security.v3.dtos.ChangePwdDto;
-import org.vimal.security.v3.dtos.RegistrationDto;
-import org.vimal.security.v3.dtos.ResetPwdDto;
-import org.vimal.security.v3.dtos.UserSummaryDto;
+import org.vimal.security.v3.dtos.*;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
 import org.vimal.security.v3.enums.MfaType;
@@ -27,10 +24,7 @@ import javax.crypto.NoSuchPaddingException;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 import static org.vimal.security.v3.enums.FeatureFlags.*;
 import static org.vimal.security.v3.enums.MailType.*;
@@ -754,5 +748,84 @@ public class UserService {
         }
         selfDeleteAccount(user);
         return Map.of("message", "Account deleted successfully");
+    }
+
+    public ResponseEntity<Map<String, Object>> updateDetails(SelfUpdationDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserModel user = userRepo.findById(getCurrentAuthenticatedUser().getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        SelfUpdationResultDto selfUpdationResult = validateAndSet(user, dto);
+        if (!selfUpdationResult.getInvalidInputs().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("invalid_inputs", selfUpdationResult.getInvalidInputs()));
+        }
+        if (selfUpdationResult.isModified()) {
+            user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+            if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_UPDATE_DETAILS.name())) {
+                mailService.sendEmailAsync(user.getEmail(), "Account details updated confirmation", "", SELF_UPDATE_DETAILS_CONFIRMATION);
+            }
+            Map<String, Object> response = new HashMap<>();
+            if (selfUpdationResult.isShouldRemoveTokens()) {
+                accessTokenUtility.revokeTokens(Set.of(user));
+                response.put("message", "User details updated successfully. Please login again to continue");
+            } else {
+                response.put("message", "User details updated successfully");
+            }
+            response.put("user", mapperUtility.toUserSummaryDto(userRepo.save(user)));
+            return ResponseEntity.ok(response);
+        }
+        return ResponseEntity.ok(Map.of("message", "No details were updated"));
+    }
+
+    private SelfUpdationResultDto validateAndSet(UserModel user, SelfUpdationDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        var selfUpdationResult = new SelfUpdationResultDto(false, false, new HashSet<>());
+        try {
+            validatePassword(dto.getOldPassword());
+            if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
+                selfUpdationResult.getInvalidInputs().add("Invalid old password");
+            }
+        } catch (SimpleBadRequestException ex) {
+            selfUpdationResult.getInvalidInputs().add("Invalid old password");
+        }
+        if (dto.getFirstName() != null && !dto.getFirstName().equals(user.getFirstName())) {
+            try {
+                validateFirstName(dto.getFirstName());
+                user.setFirstName(dto.getFirstName());
+                selfUpdationResult.setModified(true);
+            } catch (SimpleBadRequestException ex) {
+                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+            }
+        }
+        if (dto.getMiddleName() != null && !dto.getMiddleName().equals(user.getMiddleName())) {
+            try {
+                validateMiddleName(dto.getMiddleName());
+                user.setMiddleName(dto.getMiddleName());
+                selfUpdationResult.setModified(true);
+            } catch (SimpleBadRequestException ex) {
+                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+            }
+        }
+        if (dto.getLastName() != null && !dto.getLastName().equals(user.getLastName())) {
+            try {
+                validateLastName(dto.getLastName());
+                user.setLastName(dto.getLastName());
+                selfUpdationResult.setModified(true);
+            } catch (SimpleBadRequestException ex) {
+                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+            }
+        }
+        if (dto.getUsername() != null && !dto.getUsername().equals(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class))) {
+            try {
+                validateUsername(dto.getUsername());
+                String encryptedUsername = genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername());
+                if (userRepo.existsByUsername(encryptedUsername)) {
+                    selfUpdationResult.getInvalidInputs().add("Username already taken");
+                } else {
+                    user.setUsername(encryptedUsername);
+                    selfUpdationResult.setModified(true);
+                    selfUpdationResult.setShouldRemoveTokens(true);
+                }
+            } catch (SimpleBadRequestException ex) {
+                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+            }
+        }
+        return selfUpdationResult;
     }
 }

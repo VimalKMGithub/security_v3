@@ -4,10 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
-import org.vimal.security.v3.dtos.ChangePwdDto;
-import org.vimal.security.v3.dtos.RegistrationDto;
-import org.vimal.security.v3.dtos.ResetPwdDto;
-import org.vimal.security.v3.dtos.UserSummaryDto;
+import org.vimal.security.v3.dtos.*;
 import org.vimal.security.v3.services.UserService;
 
 import javax.crypto.BadPaddingException;
@@ -97,5 +94,10 @@ public class UserController {
     @DeleteMapping("/verify/delete/account")
     public ResponseEntity<Map<String, String>> verifyDeleteAccount(@RequestParam String otpTotp, @RequestParam String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(userService.verifyDeleteAccount(otpTotp, method));
+    }
+
+    @PutMapping("/update/details")
+    public ResponseEntity<Map<String, Object>> updateDetails(@RequestBody SelfUpdationDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return userService.updateDetails(dto);
     }
 }
