@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.vimal.security.v3.dtos.RegistrationDto;
+import org.vimal.security.v3.dtos.UserSummaryDto;
 import org.vimal.security.v3.encryptordecryptors.GenericAesRandomEncryptorDecryptor;
 import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryptor;
 import org.vimal.security.v3.exceptions.ServiceUnavailableException;
@@ -31,6 +32,7 @@ import static org.vimal.security.v3.enums.FeatureFlags.REGISTRATION_EMAIL_VERIFI
 import static org.vimal.security.v3.enums.FeatureFlags.REGISTRATION_ENABLED;
 import static org.vimal.security.v3.enums.MailType.LINK;
 import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
+import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.validateInputs;
 
 @Service
@@ -120,5 +122,10 @@ public class UserService {
 
     private String getEncryptedEmailVerificationTokenKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_PREFIX + user.getId());
+    }
+
+    public UserSummaryDto getSelfDetails() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserModel user = userRepo.findById(getCurrentAuthenticatedUser().getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        return mapperUtility.toUserSummaryDto(user);
     }
 }
