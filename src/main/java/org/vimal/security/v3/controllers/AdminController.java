@@ -4,10 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 import org.vimal.security.v3.dtos.UserCreationDto;
 import org.vimal.security.v3.services.AdminService;
 
@@ -30,5 +27,11 @@ public class AdminController {
     @PreAuthorize("@PreAuth.canCreateUsers()")
     public ResponseEntity<Map<String, Object>> createUsers(@RequestBody Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.createUsers(dtos);
+    }
+
+    @DeleteMapping("/delete/users")
+    @PreAuthorize("@PreAuth.canDeleteUsers()")
+    public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.deleteUsers(usernamesOrEmails);
     }
 }
