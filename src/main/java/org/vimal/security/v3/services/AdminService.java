@@ -500,6 +500,18 @@ public class AdminService {
         return collectUser;
     }
 
+    public ResponseEntity<Map<String, Object>> deleteUsersLenient(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
+        String deleterHighestTopRole = getUserHighestTopRole(deleter);
+        ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, deleter, deleterHighestTopRole, false);
+        if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
+            accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
+            userRepo.saveAll(validateInputsForDeleteUsersResult.getUsersToDelete());
+            return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
+        }
+        return ResponseEntity.ok(Map.of("message", "No users to delete"));
+    }
+
     public ResponseEntity<Map<String, Object>> deleteUsersHard(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UserDetailsImpl user = getCurrentAuthenticatedUserDetails();
         String userHighestTopRole = getUserHighestTopRole(user);
