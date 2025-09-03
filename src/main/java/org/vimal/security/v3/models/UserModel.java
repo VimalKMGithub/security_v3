@@ -99,7 +99,7 @@ public class UserModel {
     @Column(name = "auth_app_secret", length = 512)
     private String authAppSecret;
 
-    public void recordAccountDeletion(boolean isDeleted, String agentUsername) {
+    public void recordAccountDeletionStatus(boolean isDeleted, String agentUsername) {
         if (isDeleted) {
             this.accountDeleted = true;
             this.accountDeletedAt = Instant.now();

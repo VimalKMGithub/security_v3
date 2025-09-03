@@ -622,7 +622,7 @@ public class UserService {
 
     private void selfDeleteAccount(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         accessTokenUtility.revokeTokens(Set.of(user));
-        user.recordAccountDeletion(true, genericAesRandomEncryptorDecryptor.encrypt("SELF"));
+        user.recordAccountDeletionStatus(true, genericAesRandomEncryptorDecryptor.encrypt("SELF"));
         userRepo.save(user);
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_ACCOUNT_DELETION.name())) {
             mailService.sendEmailAsync(user.getEmail(), "Account deletion confirmation", "", ACCOUNT_DELETION_CONFIRMATION);
