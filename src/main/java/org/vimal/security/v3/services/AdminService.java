@@ -536,4 +536,20 @@ public class AdminService {
             throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
         }
     }
+
+    public ResponseEntity<Map<String, Object>> deleteUsersHardLenient(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserDetailsImpl user = getCurrentAuthenticatedUserDetails();
+        String userHighestTopRole = getUserHighestTopRole(user);
+        if (unleash.isEnabled(ALLOW_HARD_DELETE_USERS.name()) || TOP_ROLES.getFirst().equals(userHighestTopRole)) {
+            checkUserCanHardDeleteUsers(userHighestTopRole);
+            ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, user, userHighestTopRole, true);
+            if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
+                accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
+                userRepo.deleteAll(validateInputsForDeleteUsersResult.getUsersToDelete());
+                return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
+            }
+            return ResponseEntity.ok(Map.of("message", "No users to delete"));
+        }
+        throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
+    }
 }
