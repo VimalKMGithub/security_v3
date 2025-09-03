@@ -368,7 +368,7 @@ public class AdminService {
                 invalidInputs.add(identifier);
             }
         }
-        String ownUsername = genericAesStaticEncryptorDecryptor.decrypt(user.getUser().getUsername(), String.class);
+        String ownUsername = genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class);
         if (usernames.contains(ownUsername)) {
             ownUserInInputs.add(ownUsername);
         }
@@ -379,82 +379,50 @@ public class AdminService {
         return new ValidateInputsForDeleteOrReadUsersResultDto(invalidInputs, usernames, emails, ownUserInInputs);
     }
 
-    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult2, UserDetailsImpl user, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult, UserDetailsImpl deleter, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> tempSet = new HashSet<>();
         Map<String, String> tempMap = new HashMap<>();
         String tempStr;
-        for (String username : validateInputsForDeleteOrReadUsersResult2.getUsernames()) {
+        for (String username : validateInputsForDeleteOrReadUsersResult.getUsernames()) {
             tempStr = genericAesStaticEncryptorDecryptor.encrypt(username);
             tempSet.add(tempStr);
             tempMap.put(tempStr, username);
         }
-        Set<UserModel> softDeletedUsers = new HashSet<>();
         Set<UserModel> usersToDelete = new HashSet<>();
-        Set<String> restrictedRolesForSoftDeletedUsers = new HashSet<>();
         Set<String> restrictedRoles = new HashSet<>();
-        boolean tempBoolean;
         for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
-            validateInputsForDeleteOrReadUsersResult2.getUsernames().remove(tempMap.get(userModel.getUsername()));
-            if (hardDelete) {
-                tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
-                if (tempBoolean) {
-                    usersToDelete.add(userModel);
-                }
-            } else {
-                if (!userModel.isAccountDeleted()) {
-                    tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
-                    if (tempBoolean) {
-                        userModel.recordAccountDeletion(true, genericAesRandomEncryptorDecryptor.encrypt());
-                        usersToDelete.add(userModel);
-                    }
-                }
+            validateInputsForDeleteOrReadUsersResult.getUsernames().remove(tempMap.get(userModel.getUsername()));
+            userDeletionResult(userModel, deleter, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
+        }
+        tempSet.clear();
+        tempMap.clear();
+        for (String email : validateInputsForDeleteOrReadUsersResult.getEmails()) {
+            tempStr = genericAesStaticEncryptorDecryptor.encrypt(email);
+            tempSet.add(tempStr);
+            tempMap.put(tempStr, email);
+        }
+        for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
+            validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
+            userDeletionResult(userModel, deleter, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
+        }
+        return new ValidateInputsForDeleteUsersResultDto(errorsStuffingIfAnyInInput(validateInputsForDeleteOrReadUsersResult, rolesOfUsers, deleterHighestTopRole), usersToDelete, softDeletedUsers, rolesOfSoftDeletedUsers);
+    }
+
+    private void userDeletionResult(UserModel userModel, UserDetailsImpl deleter, String deleterHighestTopRole, Set<String> restrictedRoles, Set<UserModel> usersToDelete, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        if (hardDelete) {
+            boolean tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
+            if (tempBoolean) {
+                usersToDelete.add(userModel);
             }
-            if (userModel.isAccountDeleted()) {
-                tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRolesForSoftDeletedUsers);
+        } else {
+            if (!userModel.isAccountDeleted()) {
+                boolean tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
                 if (tempBoolean) {
-                    softDeletedUsers.add(userModel);
-                }
-            } else {
-                tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
-                if (tempBoolean) {
-                    userModel.recordAccountDeletion(true, genericAesRandomEncryptorDecryptor.encrypt());
+                    userModel.recordAccountDeletion(true, genericAesRandomEncryptorDecryptor.encrypt(deleter.getUsername()));
                     usersToDelete.add(userModel);
                 }
             }
         }
-        var foundByUsernames = userRepo.findByUsernameIn(validateInputsForDeleteOrReadUsersResult2.getUsernames());
-        var foundByEmails = userRepo.findByEmailIn(validateInputsForDeleteOrReadUsersResult2.getEmails());
-
-
-        var rolesOfUsers = new HashSet<String>();
-        var rolesOfSoftDeletedUsers = new HashSet<String>();
-        foundByUsernames.forEach(userToDelete -> {
-            validateInputsForDeleteOrReadUsersResult2.getUsernames().remove(userToDelete.getUsername());
-            if (userToDelete.isAccountDeleted()) {
-                softDeletedUsers.add(userToDelete);
-                if (!userToDelete.getRoles().isEmpty())
-                    userToDelete.getRoles().forEach(role -> rolesOfSoftDeletedUsers.add(role.getRoleName()));
-                return;
-            }
-            if (!userToDelete.getRoles().isEmpty())
-                userToDelete.getRoles().forEach(role -> rolesOfUsers.add(role.getRoleName()));
-            userToDelete.recordAccountDeletion(true, user.getUsername());
-            usersToDelete.add(userToDelete);
-        });
-        foundByEmails.forEach(userToDelete -> {
-            validateInputsForDeleteOrReadUsersResult2.getEmails().remove(userToDelete.getEmail());
-            if (userToDelete.isAccountDeleted()) {
-                softDeletedUsers.add(userToDelete);
-                if (!userToDelete.getRoles().isEmpty())
-                    userToDelete.getRoles().forEach(role -> rolesOfSoftDeletedUsers.add(role.getRoleName()));
-                return;
-            }
-            if (!userToDelete.getRoles().isEmpty())
-                userToDelete.getRoles().forEach(role -> rolesOfUsers.add(role.getRoleName()));
-            userToDelete.recordAccountDeletion(true, user.getUsername());
-            usersToDelete.add(userToDelete);
-        });
-        return new UserDeletionResultDto(errorsStuffingIfAnyInInput(validateInputsForDeleteOrReadUsersResult2, rolesOfUsers, deleterHighestTopRole), usersToDelete, softDeletedUsers, rolesOfSoftDeletedUsers);
     }
 
     private boolean validateRoleRestriction(UserModel user, String userHighestTopRole, Set<String> restrictedRoles) {
