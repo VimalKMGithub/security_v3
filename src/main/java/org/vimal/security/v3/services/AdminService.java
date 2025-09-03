@@ -71,35 +71,13 @@ public class AdminService {
             if (!mapOfErrors.isEmpty()) {
                 return ResponseEntity.badRequest().body(mapOfErrors);
             }
-            Set<String> tempSet = new HashSet<>();
-            Map<String, String> tempMap = new HashMap<>();
-            String tempStr;
-            for (String username : validateInputsForUsersCreationResult.getUsernames()) {
-                tempStr = genericAesStaticEncryptorDecryptor.encrypt(username);
-                tempSet.add(tempStr);
-                tempMap.put(tempStr, username);
-            }
-            Set<String> alreadyTakenUsernames = new HashSet<>();
-            for (UserModel user : userRepo.findByUsernameIn(tempSet)) {
-                alreadyTakenUsernames.add(tempMap.get(user.getUsername()));
-            }
-            tempSet.clear();
-            tempMap.clear();
-            for (String email : validateInputsForUsersCreationResult.getEmails()) {
-                tempStr = genericAesStaticEncryptorDecryptor.encrypt(email);
-                tempSet.add(tempStr);
-                tempMap.put(tempStr, email);
-            }
-            Set<String> alreadyTakenEmails = new HashSet<>();
-            for (UserModel user : userRepo.findByEmailIn(tempSet)) {
-                alreadyTakenEmails.add(tempMap.get(user.getEmail()));
-            }
+            AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
             Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
-            if (!alreadyTakenUsernames.isEmpty()) {
-                mapOfErrors.put("already_taken_usernames", alreadyTakenUsernames);
+            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().isEmpty()) {
+                mapOfErrors.put("already_taken_usernames", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames());
             }
-            if (!alreadyTakenEmails.isEmpty()) {
-                mapOfErrors.put("already_taken_emails", alreadyTakenEmails);
+            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().isEmpty()) {
+                mapOfErrors.put("already_taken_emails", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails());
             }
             if (!validateInputsForUsersCreationResult.getRoles().isEmpty()) {
                 mapOfErrors.put("missing_roles", validateInputsForUsersCreationResult.getRoles());
@@ -271,6 +249,33 @@ public class AdminService {
         return resolvedRolesMap;
     }
 
+    private AlreadyTakenUsernamesAndEmailsResultDto getAlreadyTakenUsernamesAndEmails(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Set<String> tempSet = new HashSet<>();
+        Map<String, String> tempMap = new HashMap<>();
+        String tempStr;
+        for (String username : validateInputsForUsersCreationResult.getUsernames()) {
+            tempStr = genericAesStaticEncryptorDecryptor.encrypt(username);
+            tempSet.add(tempStr);
+            tempMap.put(tempStr, username);
+        }
+        Set<String> alreadyTakenUsernames = new HashSet<>();
+        for (UserModel user : userRepo.findByUsernameIn(tempSet)) {
+            alreadyTakenUsernames.add(tempMap.get(user.getUsername()));
+        }
+        tempSet.clear();
+        tempMap.clear();
+        for (String email : validateInputsForUsersCreationResult.getEmails()) {
+            tempStr = genericAesStaticEncryptorDecryptor.encrypt(email);
+            tempSet.add(tempStr);
+            tempMap.put(tempStr, email);
+        }
+        Set<String> alreadyTakenEmails = new HashSet<>();
+        for (UserModel user : userRepo.findByEmailIn(tempSet)) {
+            alreadyTakenEmails.add(tempMap.get(user.getEmail()));
+        }
+        return new AlreadyTakenUsernamesAndEmailsResultDto(alreadyTakenUsernames, alreadyTakenEmails);
+    }
+
     private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String creator) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedEmail = genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail());
         return UserModel.builder()
@@ -292,6 +297,49 @@ public class AdminService {
                 .accountDeletedAt(dto.isAccountDeleted() ? Instant.now() : null)
                 .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(creator) : null)
                 .build();
+    }
+
+    public ResponseEntity<Map<String, Object>> createUsersLenient(Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
+        String creatorHighestTopRole = getUserHighestTopRole(creator);
+        Variant variant = unleash.getVariant(ALLOW_CREATE_USERS.name());
+        if (entryCheck(variant, creatorHighestTopRole)) {
+            checkUserCanCreateUsers(creatorHighestTopRole);
+            validateDtosSizeForUsersCreation(variant, dtos);
+            ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(dtos, creatorHighestTopRole);
+            AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
+            if (dtos.isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No users created"));
+            }
+            Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
+            Set<UserModel> newUsers = new HashSet<>();
+            for (UserCreationDto dto : dtos) {
+                if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().contains(dto.getUsername()) || alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().contains(dto.getEmail())) {
+                    continue;
+                }
+                if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
+                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUser().getUsername()));
+                } else {
+                    Set<RoleModel> rolesToAssign = new HashSet<>();
+                    for (String roleName : dto.getRoles()) {
+                        RoleModel role = resolvedRolesMap.get(roleName);
+                        if (role != null) {
+                            rolesToAssign.add(role);
+                        }
+                    }
+                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUser().getUsername()));
+                }
+            }
+            if (!newUsers.isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No users created"));
+            }
+            List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
+            for (UserModel userModel : userRepo.saveAll(newUsers)) {
+                users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
+            }
+            return ResponseEntity.ok(Map.of("created_users", users));
+        }
+        throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
     }
 
     public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {

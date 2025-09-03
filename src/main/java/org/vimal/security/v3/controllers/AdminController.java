@@ -29,6 +29,12 @@ public class AdminController {
         return adminService.createUsers(dtos);
     }
 
+    @PostMapping("/create/users/lenient")
+    @PreAuthorize("@PreAuth.canCreateUsers()")
+    public ResponseEntity<Map<String, Object>> createUsersLenient(@RequestBody Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.createUsersLenient(dtos);
+    }
+
     @DeleteMapping("/delete/users")
     @PreAuthorize("@PreAuth.canDeleteUsers()")
     public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
