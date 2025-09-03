@@ -323,7 +323,7 @@ public class AdminService {
                 mapOfErrors.put("you_cannot_delete_your_own_account_using_this_endpoint", validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs());
             }
             if (!mapOfErrors.isEmpty()) {
-                return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, null, null, null);
+                return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, null);
             }
             return getUsersDeletionResult(validateInputsForDeleteOrReadUsersResult, deleter, deleterHighestTopRole, hardDelete);
         }
@@ -405,7 +405,17 @@ public class AdminService {
             validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
             userDeletionResult(userModel, deleter, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
         }
-        return new ValidateInputsForDeleteUsersResultDto(errorsStuffingIfAnyInInput(validateInputsForDeleteOrReadUsersResult, rolesOfUsers, deleterHighestTopRole), usersToDelete, softDeletedUsers, rolesOfSoftDeletedUsers);
+        Map<String, Object> mapOfErrors = new HashMap<>();
+        if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
+            mapOfErrors.put("users_not_found_with_usernames", validateInputsForDeleteOrReadUsersResult.getUsernames());
+        }
+        if (!validateInputsForDeleteOrReadUsersResult.getEmails().isEmpty()) {
+            mapOfErrors.put("users_not_found_with_emails", validateInputsForDeleteOrReadUsersResult.getEmails());
+        }
+        if (!restrictedRoles.isEmpty()) {
+            mapOfErrors.put("not_allowed_to_delete_users_having_roles", restrictedRoles);
+        }
+        return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, usersToDelete);
     }
 
     private void userDeletionResult(UserModel userModel, UserDetailsImpl deleter, String deleterHighestTopRole, Set<String> restrictedRoles, Set<UserModel> usersToDelete, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {

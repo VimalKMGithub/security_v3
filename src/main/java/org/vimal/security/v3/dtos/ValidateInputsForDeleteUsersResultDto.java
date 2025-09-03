@@ -16,6 +16,4 @@ import java.util.Set;
 public class ValidateInputsForDeleteUsersResultDto {
     private Map<String, Object> mapOfErrors;
     private Set<UserModel> usersToDelete;
-    private Set<UserModel> softDeletedUsers;
-    private Set<String> rolesOfSoftDeletedUsers;
 }
