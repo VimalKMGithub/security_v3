@@ -91,7 +91,7 @@ public class AdminService {
             Set<UserModel> newUsers = new HashSet<>();
             for (UserCreationDto dto : dtos) {
                 if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
-                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUser().getUsername()));
+                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUsername()));
                 } else {
                     Set<RoleModel> rolesToAssign = new HashSet<>();
                     for (String roleName : dto.getRoles()) {
@@ -100,7 +100,7 @@ public class AdminService {
                             rolesToAssign.add(role);
                         }
                     }
-                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUser().getUsername()));
+                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUsername()));
                 }
             }
             List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
@@ -319,7 +319,7 @@ public class AdminService {
                     continue;
                 }
                 if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
-                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUser().getUsername()));
+                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUsername()));
                 } else {
                     Set<RoleModel> rolesToAssign = new HashSet<>();
                     for (String roleName : dto.getRoles()) {
@@ -328,7 +328,7 @@ public class AdminService {
                             rolesToAssign.add(role);
                         }
                     }
-                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUser().getUsername()));
+                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUsername()));
                 }
             }
             if (!newUsers.isEmpty()) {
