@@ -428,9 +428,11 @@ public class AdminService {
         }
         if (usernames.contains(userUsername)) {
             ownUserInInputs.add(userUsername);
+            usernames.remove(userUsername);
         }
         if (emails.contains(userEmail)) {
             ownUserInInputs.add(userEmail);
+            emails.remove(userEmail);
         }
         return new ValidateInputsForDeleteOrReadUsersResultDto(invalidInputs, usernames, emails, ownUserInInputs);
     }
