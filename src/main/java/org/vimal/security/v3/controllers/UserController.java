@@ -15,6 +15,8 @@ import java.security.InvalidKeyException;
 import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 
+import static org.vimal.security.v3.enums.MfaType.DEFAULT_MFA;
+
 @RestController
 @RequestMapping("/api/v1/user")
 @RequiredArgsConstructor
@@ -47,7 +49,7 @@ public class UserController {
     }
 
     @PostMapping("/forgot/password/methodSelection")
-    public ResponseEntity<Map<String, String>> forgotPasswordMethodSelection(@RequestParam String usernameOrEmail, @RequestParam String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, String>> forgotPasswordMethodSelection(@RequestParam String usernameOrEmail, @RequestParam(defaultValue = DEFAULT_MFA) String method) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return ResponseEntity.ok(userService.forgotPasswordMethodSelection(usernameOrEmail, method));
     }
 

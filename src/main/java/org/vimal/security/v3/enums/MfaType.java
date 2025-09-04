@@ -6,6 +6,7 @@ import static org.vimal.security.v3.enums.FeatureFlags.MFA_EMAIL;
 public enum MfaType {
     EMAIL_MFA,
     AUTHENTICATOR_APP_MFA;
+    public static final String DEFAULT_MFA = "EMAIL_MFA";
 
     public FeatureFlags toFeatureFlag() {
         return switch (this) {
