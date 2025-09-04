@@ -331,7 +331,7 @@ public class AdminService {
                     newUsers.add(toUserModel(dto, rolesToAssign, creator.getUsername()));
                 }
             }
-            if (!newUsers.isEmpty()) {
+            if (newUsers.isEmpty()) {
                 return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
