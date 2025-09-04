@@ -380,10 +380,7 @@ public class AdminService {
             if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs().isEmpty()) {
                 mapOfErrors.put("you_cannot_delete_your_own_account_using_this_endpoint", validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs());
             }
-            if (!mapOfErrors.isEmpty()) {
-                return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, null);
-            }
-            return getUsersDeletionResult(validateInputsForDeleteOrReadUsersResult, decryptedDeleterUsername, deleterHighestTopRole, hardDelete);
+            return getUsersDeletionResult(validateInputsForDeleteOrReadUsersResult, decryptedDeleterUsername, deleterHighestTopRole, hardDelete, mapOfErrors);
         }
         throw new ServiceUnavailableException("Deletion of users is currently disabled. Please try again later");
     }
@@ -437,7 +434,7 @@ public class AdminService {
         return new ValidateInputsForDeleteOrReadUsersResultDto(invalidInputs, usernames, emails, ownUserInInputs);
     }
 
-    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult, String deleterUsername, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult, String deleterUsername, String deleterHighestTopRole, boolean hardDelete, Map<String, Object> mapOfErrors) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> tempSet = new HashSet<>();
         Map<String, String> tempMap = new HashMap<>();
         String tempStr;
@@ -463,7 +460,6 @@ public class AdminService {
             validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
             userDeletionResult(userModel, deleterUsername, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
         }
-        Map<String, Object> mapOfErrors = new HashMap<>();
         if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
             mapOfErrors.put("users_not_found_with_usernames", validateInputsForDeleteOrReadUsersResult.getUsernames());
         }
