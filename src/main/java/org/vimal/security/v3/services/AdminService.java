@@ -278,7 +278,7 @@ public class AdminService {
 
     private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String creator) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedEmail = genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail());
-        String creatorDecrypted = genericAesRandomEncryptorDecryptor.decrypt(creator, String.class);
+        String creatorDecrypted = genericAesStaticEncryptorDecryptor.decrypt(creator, String.class);
         return UserModel.builder()
                 .username(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))
                 .email(encryptedEmail)
