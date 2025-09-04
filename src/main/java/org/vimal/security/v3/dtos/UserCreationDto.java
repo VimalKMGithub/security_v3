@@ -8,9 +8,9 @@ import java.util.Set;
 @Getter
 @Setter
 public class UserCreationDto extends RegistrationDto {
-    public Set<String> roles;
-    public boolean emailVerified;
-    public boolean accountLocked;
-    public boolean accountEnabled;
-    public boolean accountDeleted;
+    private Set<String> roles;
+    private boolean emailVerified;
+    private boolean accountLocked;
+    private boolean accountEnabled;
+    private boolean accountDeleted;
 }

@@ -12,11 +12,11 @@ import java.util.Set;
 @NoArgsConstructor
 @AllArgsConstructor
 public class ValidateInputsForUsersCreationResultDto {
-    public Set<String> invalidInputs;
-    public Set<String> usernames;
-    public Set<String> emails;
-    public Set<String> duplicateUsernamesInDtos;
-    public Set<String> duplicateEmailsInDtos;
-    public Set<String> roles;
-    public Set<String> restrictedRoles;
+    private Set<String> invalidInputs;
+    private Set<String> usernames;
+    private Set<String> emails;
+    private Set<String> duplicateUsernamesInDtos;
+    private Set<String> duplicateEmailsInDtos;
+    private Set<String> roles;
+    private Set<String> restrictedRoles;
 }

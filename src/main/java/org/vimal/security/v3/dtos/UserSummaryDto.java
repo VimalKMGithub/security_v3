@@ -10,25 +10,25 @@ import java.util.UUID;
 @Getter
 @Setter
 public class UserSummaryDto {
-    public UUID id;
-    public String firstName;
-    public String middleName;
-    public String lastName;
-    public String username;
-    public String email;
-    public String createdBy;
-    public String updatedBy;
-    public Set<String> roles;
-    public Set<String> mfaMethods;
-    public Instant lastLoginAt;
-    public Instant passwordChangedAt;
-    public Instant createdAt;
-    public Instant updatedAt;
-    public Instant lastLockedAt;
-    public boolean emailVerified;
-    public boolean mfaEnabled;
-    public boolean accountLocked;
-    public boolean accountEnabled;
-    public int failedLoginAttempts;
-    public int failedMfaAttempts;
+    private UUID id;
+    private String firstName;
+    private String middleName;
+    private String lastName;
+    private String username;
+    private String email;
+    private String createdBy;
+    private String updatedBy;
+    private Set<String> roles;
+    private Set<String> mfaMethods;
+    private Instant lastLoginAt;
+    private Instant passwordChangedAt;
+    private Instant createdAt;
+    private Instant updatedAt;
+    private Instant lastLockedAt;
+    private boolean emailVerified;
+    private boolean mfaEnabled;
+    private boolean accountLocked;
+    private boolean accountEnabled;
+    private int failedLoginAttempts;
+    private int failedMfaAttempts;
 }

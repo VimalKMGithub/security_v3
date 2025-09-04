@@ -6,10 +6,10 @@ import lombok.Setter;
 @Getter
 @Setter
 public class RegistrationDto {
-    public String username;
-    public String password;
-    public String email;
-    public String firstName;
-    public String middleName;
-    public String lastName;
+    private String username;
+    private String password;
+    private String email;
+    private String firstName;
+    private String middleName;
+    private String lastName;
 }
