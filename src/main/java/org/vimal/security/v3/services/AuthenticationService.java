@@ -383,8 +383,7 @@ public class AuthenticationService {
             throw new SimpleBadRequestException("Invalid state token");
         }
         UserModel user = getUser(stateToken);
-        MfaType mfaType = MfaType.valueOf(type.toUpperCase());
-        switch (mfaType) {
+        switch (MfaType.valueOf(type.toUpperCase())) {
             case EMAIL_MFA -> {
                 if (user.getMfaMethods().isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
