@@ -444,8 +444,7 @@ public class AuthenticationService {
         }
         String encryptedStateTokenMappingKey = getEncryptedStateTokenMappingKey(stateToken);
         UserModel user = userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(encryptedStateTokenMappingKey)).orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
-        MfaType mfaType = MfaType.valueOf(type.toUpperCase());
-        switch (mfaType) {
+        switch (MfaType.valueOf(type.toUpperCase())) {
             case EMAIL_MFA -> {
                 if (user.getMfaMethods().isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
