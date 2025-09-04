@@ -248,8 +248,7 @@ public class AccessTokenUtility {
     }
 
     private void proceedAndRevokeTokens(Set<Object> encryptedKeys, Set<Object> encryptedRefreshTokenKeys) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        List<Object> encryptedRefreshTokens = redisService.getAll(encryptedRefreshTokenKeys);
-        for (Object encryptedRefreshToken : encryptedRefreshTokens) {
+        for (Object encryptedRefreshToken : redisService.getAll(encryptedRefreshTokenKeys)) {
             if (encryptedRefreshToken != null) {
                 encryptedKeys.add(getEncryptedRefreshTokenMappingKey((String) encryptedRefreshToken));
             }
@@ -274,9 +273,7 @@ public class AccessTokenUtility {
 
     public void revokeRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedRefreshTokenMappingKey = getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(refreshToken);
-        UUID userId = getUserId(encryptedRefreshTokenMappingKey);
-        redisService.delete(encryptedRefreshTokenMappingKey);
-        redisService.delete(genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + userId));
+        redisService.deleteAll(Set.of(encryptedRefreshTokenMappingKey, genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + getUserId(encryptedRefreshTokenMappingKey))));
     }
 
     private String getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
@@ -295,10 +292,7 @@ public class AccessTokenUtility {
         UUID userId = getUserId(getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(refreshToken));
         Object encryptedRefreshToken = redisService.get(genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + userId));
         if (encryptedRefreshToken != null) {
-            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedRefreshToken, String.class).equals(refreshToken)) {
-                return userRepo.findById(userId).orElseThrow(() -> new SimpleBadRequestException("Invalid refresh token"));
-            }
-            throw new SimpleBadRequestException("Invalid refresh token");
+            return userRepo.findById(userId).orElseThrow(() -> new SimpleBadRequestException("Invalid refresh token"));
         }
         throw new SimpleBadRequestException("Invalid refresh token");
     }
