@@ -45,6 +45,7 @@ import static org.vimal.security.v3.utils.MfaUtility.MFA_METHODS;
 import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
 import static org.vimal.security.v3.utils.OtpUtility.generateOtp;
 import static org.vimal.security.v3.utils.QrUtility.generateQRCode;
+import static org.vimal.security.v3.utils.ToggleUtility.TOGGLE_TYPE;
 import static org.vimal.security.v3.utils.TotpUtility.*;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
@@ -52,7 +53,6 @@ import static org.vimal.security.v3.utils.ValidationUtility.*;
 @Service
 @RequiredArgsConstructor
 public class AuthenticationService {
-    private static final Set<String> TOGGLE_TYPE = Set.of("enable", "disable");
     private static final String STATE_TOKEN_PREFIX = "SECURITY_V3_STATE_TOKEN:";
     private static final String STATE_TOKEN_MAPPING_PREFIX = "SECURITY_V3_STATE_TOKEN_MAPPING:";
     private static final String EMAIL_MFA_OTP_PREFIX = "SECURITY_V3_EMAIL_MFA_OTP:";

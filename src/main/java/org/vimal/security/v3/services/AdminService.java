@@ -34,6 +34,7 @@ import java.util.*;
 import static org.vimal.security.v3.enums.FeatureFlags.*;
 import static org.vimal.security.v3.enums.SystemRoles.ROLE_PRIORITY_MAP;
 import static org.vimal.security.v3.enums.SystemRoles.TOP_ROLES;
+import static org.vimal.security.v3.utils.ToggleUtility.TOGGLE_TYPE;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUserDetails;
 import static org.vimal.security.v3.utils.ValidationUtility.*;
 
@@ -59,7 +60,7 @@ public class AdminService {
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
-    public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
         String creatorHighestTopRole = getUserHighestTopRole(creator);
         Variant variant = unleash.getVariant(ALLOW_CREATE_USERS.name());
@@ -68,28 +69,43 @@ public class AdminService {
             validateDtosSizeForUsersCreation(variant, dtos);
             ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(dtos, creatorHighestTopRole);
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersCreationResult);
-            if (!mapOfErrors.isEmpty()) {
-                return ResponseEntity.badRequest().body(mapOfErrors);
+            boolean isLenient = validateLeniency(leniency);
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest().body(mapOfErrors);
+                }
             }
             AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
-            Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
             if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().isEmpty()) {
                 mapOfErrors.put("already_taken_usernames", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames());
             }
             if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().isEmpty()) {
                 mapOfErrors.put("already_taken_emails", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails());
             }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest().body(mapOfErrors);
+                }
+            }
+            Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
             if (!validateInputsForUsersCreationResult.getRoles().isEmpty()) {
                 mapOfErrors.put("missing_roles", validateInputsForUsersCreationResult.getRoles());
             }
-            if (!mapOfErrors.isEmpty()) {
-                return ResponseEntity.badRequest().body(mapOfErrors);
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest().body(mapOfErrors);
+                }
             }
             if (dtos.isEmpty()) {
                 return ResponseEntity.ok(Map.of("message", "No users to create"));
             }
             Set<UserModel> newUsers = new HashSet<>();
             for (UserCreationDto dto : dtos) {
+                if (isLenient) {
+                    if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().contains(dto.getUsername()) || alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().contains(dto.getEmail())) {
+                        continue;
+                    }
+                }
                 if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
                     newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUsername()));
                 } else {
@@ -102,6 +118,9 @@ public class AdminService {
                     }
                     newUsers.add(toUserModel(dto, rolesToAssign, creator.getUsername()));
                 }
+            }
+            if (newUsers.isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
             for (UserModel userModel : userRepo.saveAll(newUsers)) {
@@ -222,6 +241,13 @@ public class AdminService {
         return removeFromDtos;
     }
 
+    private boolean validateLeniency(String leniency) {
+        if (!TOGGLE_TYPE.contains(leniency.toLowerCase())) {
+            throw new SimpleBadRequestException("Unsupported leniency type: " + leniency + ". Supported values: " + TOGGLE_TYPE);
+        }
+        return leniency.equalsIgnoreCase("enable");
+    }
+
     private Map<String, Object> errorsStuffingIfAny(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) {
         Map<String, Object> mapOfErrors = new HashMap<>();
         if (!validateInputsForUsersCreationResult.getInvalidInputs().isEmpty()) {
@@ -300,49 +326,6 @@ public class AdminService {
                 .accountDeletedAt(dto.isAccountDeleted() ? Instant.now() : null)
                 .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(creator) : null)
                 .build();
-    }
-
-    public ResponseEntity<Map<String, Object>> createUsersLenient(Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
-        String creatorHighestTopRole = getUserHighestTopRole(creator);
-        Variant variant = unleash.getVariant(ALLOW_CREATE_USERS.name());
-        if (entryCheck(variant, creatorHighestTopRole)) {
-            checkUserCanCreateUsers(creatorHighestTopRole);
-            validateDtosSizeForUsersCreation(variant, dtos);
-            ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(dtos, creatorHighestTopRole);
-            AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
-            if (dtos.isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users created"));
-            }
-            Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
-            Set<UserModel> newUsers = new HashSet<>();
-            for (UserCreationDto dto : dtos) {
-                if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().contains(dto.getUsername()) || alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().contains(dto.getEmail())) {
-                    continue;
-                }
-                if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
-                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUsername()));
-                } else {
-                    Set<RoleModel> rolesToAssign = new HashSet<>();
-                    for (String roleName : dto.getRoles()) {
-                        RoleModel role = resolvedRolesMap.get(roleName);
-                        if (role != null) {
-                            rolesToAssign.add(role);
-                        }
-                    }
-                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUsername()));
-                }
-            }
-            if (newUsers.isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users created"));
-            }
-            List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
-            for (UserModel userModel : userRepo.saveAll(newUsers)) {
-                users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
-            }
-            return ResponseEntity.ok(Map.of("created_users", users));
-        }
-        throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
     }
 
     public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {

@@ -25,14 +25,8 @@ public class AdminController {
 
     @PostMapping("/create/users")
     @PreAuthorize("@PreAuth.canCreateUsers()")
-    public ResponseEntity<Map<String, Object>> createUsers(@RequestBody Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.createUsers(dtos);
-    }
-
-    @PostMapping("/create/users/lenient")
-    @PreAuthorize("@PreAuth.canCreateUsers()")
-    public ResponseEntity<Map<String, Object>> createUsersLenient(@RequestBody Set<UserCreationDto> dtos) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.createUsersLenient(dtos);
+    public ResponseEntity<Map<String, Object>> createUsers(@RequestBody Set<UserCreationDto> dtos, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.createUsers(dtos, leniency);
     }
 
     @DeleteMapping("/delete/users")
