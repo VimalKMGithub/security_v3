@@ -44,7 +44,7 @@ import static org.vimal.security.v3.enums.MfaType.EMAIL_MFA;
 import static org.vimal.security.v3.utils.MfaUtility.MFA_METHODS;
 import static org.vimal.security.v3.utils.MfaUtility.validateTypeExistence;
 import static org.vimal.security.v3.utils.OtpUtility.generateOtp;
-import static org.vimal.security.v3.utils.QrUtility.generateQRCode;
+import static org.vimal.security.v3.utils.QrUtility.generateQrCode;
 import static org.vimal.security.v3.utils.ToggleUtility.TOGGLE_TYPE;
 import static org.vimal.security.v3.utils.TotpUtility.*;
 import static org.vimal.security.v3.utils.UserUtility.getCurrentAuthenticatedUser;
@@ -152,8 +152,7 @@ public class AuthenticationService {
     }
 
     public Map<String, String> logout() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        UserModel user = getCurrentAuthenticatedUser();
-        accessTokenUtility.revokeTokens(Set.of(user));
+        accessTokenUtility.revokeTokens(Set.of(getCurrentAuthenticatedUser()));
         return Map.of("message", "Logout successful");
     }
 
@@ -247,7 +246,7 @@ public class AuthenticationService {
     }
 
     private byte[] generateQrCodeForAuthenticatorApp(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
-        return generateQRCode(generateTotpUrl("God Level Security", user.getUsername(), generateAuthenticatorAppSecret(user)));
+        return generateQrCode(generateTotpUrl("God Level Security", user.getUsername(), generateAuthenticatorAppSecret(user)));
     }
 
     private String generateAuthenticatorAppSecret(UserModel user) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, JsonProcessingException {
