@@ -61,6 +61,7 @@ public class AdminService {
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
     public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
         String creatorHighestTopRole = getUserHighestTopRole(creator);
         Variant variant = unleash.getVariant(ALLOW_CREATE_USERS.name());
@@ -69,7 +70,6 @@ public class AdminService {
             validateDtosSizeForUsersCreation(variant, dtos);
             ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(dtos, creatorHighestTopRole);
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersCreationResult);
-            boolean isLenient = validateLeniency(leniency);
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
                     return ResponseEntity.badRequest().body(mapOfErrors);
@@ -328,7 +328,7 @@ public class AdminService {
                 .build();
     }
 
-    public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails, String hard, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
         String deleterHighestTopRole = getUserHighestTopRole(deleter);
         ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, deleter, deleterHighestTopRole, false);
