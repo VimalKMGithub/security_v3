@@ -137,9 +137,8 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
 
     private void initializeDefaultUsersIfAbsent() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<SystemUserDto> systemUsers = Set.of(new SystemUserDto(propertiesConfig.getGodUserUsername(), propertiesConfig.getGodUserPassword(), propertiesConfig.getGodUserEmail(), "God", Set.of(ROLE_GOD.name())), new SystemUserDto(propertiesConfig.getGlobalAdminUserUsername(), propertiesConfig.getGlobalAdminUserPassword(), propertiesConfig.getGlobalAdminUserEmail(), "Global Admin", Set.of(ROLE_GLOBAL_ADMIN.name())));
-        Set<UserModel> existingUsers = userRepo.findByUsernameIn(Set.of(propertiesConfig.getGodUserUsername(), propertiesConfig.getGlobalAdminUserUsername()));
         Set<String> existingUsersUsernames = new HashSet<>();
-        for (UserModel user : existingUsers) {
+        for (UserModel user : userRepo.findByUsernameIn(Set.of(propertiesConfig.getGodUserUsername(), propertiesConfig.getGlobalAdminUserUsername()))) {
             existingUsersUsernames.add(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class));
         }
         Set<UserModel> newUsers = new HashSet<>();
