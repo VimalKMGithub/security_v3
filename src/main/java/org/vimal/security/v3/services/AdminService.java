@@ -329,18 +329,40 @@ public class AdminService {
     }
 
     public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails, String hard, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean hardDelete = validateHardDeletion(hard);
+        boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
         String deleterHighestTopRole = getUserHighestTopRole(deleter);
-        ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, deleter, deleterHighestTopRole, false);
-        if (validateInputsForDeleteUsersResult.getMapOfErrors().isEmpty()) {
-            if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
-                accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
-                userRepo.saveAll(validateInputsForDeleteUsersResult.getUsersToDelete());
-                return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
+        if (hardDelete) {
+            if (unleash.isEnabled(ALLOW_HARD_DELETE_USERS.name()) || TOP_ROLES.getFirst().equals(deleterHighestTopRole)) {
+                checkUserCanHardDeleteUsers(deleterHighestTopRole);
+            } else {
+                throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
             }
-            return ResponseEntity.ok(Map.of("message", "No users to delete"));
         }
-        return ResponseEntity.badRequest().body(validateInputsForDeleteUsersResult.getMapOfErrors());
+        ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, deleter, deleterHighestTopRole, hardDelete);
+        if (!isLenient) {
+            if (!validateInputsForDeleteUsersResult.getMapOfErrors().isEmpty()) {
+                return ResponseEntity.badRequest().body(validateInputsForDeleteUsersResult.getMapOfErrors());
+            }
+        }
+        if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
+            accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
+            if (hardDelete) {
+                userRepo.deleteAll(validateInputsForDeleteUsersResult.getUsersToDelete());
+            } else {
+                userRepo.saveAll(validateInputsForDeleteUsersResult.getUsersToDelete());
+            }
+            return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
+        }
+        return ResponseEntity.ok(Map.of("message", "No users to delete"));
+    }
+
+    private boolean validateHardDeletion(String hard) {
+        if (!TOGGLE_TYPE.contains(hard.toLowerCase())) {
+            throw new SimpleBadRequestException("Unsupported hard deletion type: " + hard + ". Supported values: " + TOGGLE_TYPE);
+        }
+        return hard.equalsIgnoreCase("enable");
     }
 
     private ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsers(Set<String> usernamesOrEmails, UserDetailsImpl deleter, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
@@ -486,56 +508,9 @@ public class AdminService {
         return collectUser;
     }
 
-    public ResponseEntity<Map<String, Object>> deleteUsersLenient(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
-        String deleterHighestTopRole = getUserHighestTopRole(deleter);
-        ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, deleter, deleterHighestTopRole, false);
-        if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
-            accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
-            userRepo.saveAll(validateInputsForDeleteUsersResult.getUsersToDelete());
-            return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
-        }
-        return ResponseEntity.ok(Map.of("message", "No users to delete"));
-    }
-
-    public ResponseEntity<Map<String, Object>> deleteUsersHard(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        UserDetailsImpl user = getCurrentAuthenticatedUserDetails();
-        String userHighestTopRole = getUserHighestTopRole(user);
-        if (unleash.isEnabled(ALLOW_HARD_DELETE_USERS.name()) || TOP_ROLES.getFirst().equals(userHighestTopRole)) {
-            checkUserCanHardDeleteUsers(userHighestTopRole);
-            ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, user, userHighestTopRole, true);
-            if (validateInputsForDeleteUsersResult.getMapOfErrors().isEmpty()) {
-                if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
-                    accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
-                    userRepo.deleteAll(validateInputsForDeleteUsersResult.getUsersToDelete());
-                    return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
-                }
-                return ResponseEntity.ok(Map.of("message", "No users to delete"));
-            }
-            return ResponseEntity.badRequest().body(validateInputsForDeleteUsersResult.getMapOfErrors());
-        }
-        throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
-    }
-
     private void checkUserCanHardDeleteUsers(String userHighestTopRole) {
         if (userHighestTopRole == null && !unleash.isEnabled(ALLOW_HARD_DELETE_USERS_BY_USERS_HAVE_PERMISSION_TO_DELETE_USERS.name())) {
             throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
         }
-    }
-
-    public ResponseEntity<Map<String, Object>> deleteUsersHardLenient(Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        UserDetailsImpl user = getCurrentAuthenticatedUserDetails();
-        String userHighestTopRole = getUserHighestTopRole(user);
-        if (unleash.isEnabled(ALLOW_HARD_DELETE_USERS.name()) || TOP_ROLES.getFirst().equals(userHighestTopRole)) {
-            checkUserCanHardDeleteUsers(userHighestTopRole);
-            ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, user, userHighestTopRole, true);
-            if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
-                accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
-                userRepo.deleteAll(validateInputsForDeleteUsersResult.getUsersToDelete());
-                return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
-            }
-            return ResponseEntity.ok(Map.of("message", "No users to delete"));
-        }
-        throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
     }
 }

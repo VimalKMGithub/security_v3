@@ -34,22 +34,4 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails, @RequestParam(defaultValue = "disable") String hard, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.deleteUsers(usernamesOrEmails, hard, leniency);
     }
-
-    @DeleteMapping("/delete/users/lenient")
-    @PreAuthorize("@PreAuth.canDeleteUsers()")
-    public ResponseEntity<Map<String, Object>> deleteUsersLenient(@RequestBody Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.deleteUsersLenient(usernamesOrEmails);
-    }
-
-    @DeleteMapping("/delete/users/hard")
-    @PreAuthorize("@PreAuth.canDeleteUsers()")
-    public ResponseEntity<Map<String, Object>> deleteUsersHard(@RequestBody Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.deleteUsersHard(usernamesOrEmails);
-    }
-
-    @DeleteMapping("/delete/users/hard/lenient")
-    @PreAuthorize("@PreAuth.canDeleteUsers()")
-    public ResponseEntity<Map<String, Object>> deleteUsersHardLenient(@RequestBody Set<String> usernamesOrEmails) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.deleteUsersHardLenient(usernamesOrEmails);
-    }
 }
