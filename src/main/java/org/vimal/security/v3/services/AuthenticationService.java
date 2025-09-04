@@ -327,10 +327,10 @@ public class AuthenticationService {
         }
     }
 
-    private void emailConfirmationOnMfaToggle(UserModel user, MfaType type, boolean toggle) {
+    private void emailConfirmationOnMfaToggle(UserModel user, MfaType type, boolean toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_MFA_ENABLE_DISABLE.name())) {
             String action = toggle ? "enabled" : "disabled";
-            mailService.sendEmailAsync(user.getEmail(), "Mfa " + action + " confirmation", "Your " + type + " Mfa has been " + action, SELF_MFA_ENABLE_DISABLE_CONFIRMATION);
+            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Mfa " + action + " confirmation", "Your " + type + " Mfa has been " + action, SELF_MFA_ENABLE_DISABLE_CONFIRMATION);
         }
     }
 

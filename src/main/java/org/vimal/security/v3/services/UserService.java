@@ -74,8 +74,7 @@ public class UserService {
             if (userRepo.existsByEmail(encryptedEmail)) {
                 throw new SimpleBadRequestException("Email: '" + dto.getEmail() + "' is already taken");
             }
-            String normalizedEmail = normalizeEmail(dto.getEmail());
-            String encryptedNormalizedEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedEmail);
+            String encryptedNormalizedEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizeEmail(dto.getEmail()));
             if (userRepo.existsByRealEmail(encryptedNormalizedEmail)) {
                 throw new SimpleBadRequestException("Alias version of email: '" + dto.getEmail() + "' is already taken");
             }
@@ -133,8 +132,7 @@ public class UserService {
     }
 
     public UserSummaryDto getSelfDetails() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        UserModel user = userRepo.findById(getCurrentAuthenticatedUser().getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
-        return mapperUtility.toUserSummaryDto(user);
+        return mapperUtility.toUserSummaryDto(userRepo.findById(getCurrentAuthenticatedUser().getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user")));
     }
 
     public Map<String, Object> verifyEmail(String emailVerificationToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
@@ -299,9 +297,9 @@ public class UserService {
         userRepo.save(user);
     }
 
-    private void emailConfirmationOnPasswordReset(UserModel user) {
+    private void emailConfirmationOnPasswordReset(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_PASSWORD_RESET.name())) {
-            mailService.sendEmailAsync(user.getEmail(), "Password reset confirmation", "", PASSWORD_RESET_CONFIRMATION);
+            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Password reset confirmation", "", PASSWORD_RESET_CONFIRMATION);
         }
     }
 
@@ -342,9 +340,9 @@ public class UserService {
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
-    private void emailConfirmationOnSelfPasswordChange(UserModel user) {
+    private void emailConfirmationOnSelfPasswordChange(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_PASSWORD_CHANGE.name())) {
-            mailService.sendEmailAsync(user.getEmail(), "Password change confirmation", "", SELF_PASSWORD_CHANGE_CONFIRMATION);
+            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Password change confirmation", "", SELF_PASSWORD_CHANGE_CONFIRMATION);
         }
     }
 
@@ -633,7 +631,7 @@ public class UserService {
         user.recordAccountDeletionStatus(true, genericAesRandomEncryptorDecryptor.encrypt("SELF"));
         userRepo.save(user);
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_ACCOUNT_DELETION.name())) {
-            mailService.sendEmailAsync(user.getEmail(), "Account deletion confirmation", "", ACCOUNT_DELETION_CONFIRMATION);
+            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Account deletion confirmation", "", ACCOUNT_DELETION_CONFIRMATION);
         }
     }
 
