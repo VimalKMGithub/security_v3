@@ -365,7 +365,9 @@ public class AdminService {
         if (entryCheck(variant, deleterHighestTopRole)) {
             checkUserCanDeleteUsers(deleterHighestTopRole);
             validateInputsSizeForUsersDeletion(variant, usernamesOrEmails);
-            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, deleter);
+            String decryptedDeleterUsername = genericAesStaticEncryptorDecryptor.decrypt(deleter.getUsername(), String.class);
+            String decryptedDeleterEmail = genericAesStaticEncryptorDecryptor.decrypt(deleter.getUser().getEmail(), String.class);
+            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, decryptedDeleterUsername, decryptedDeleterEmail);
             Map<String, Object> mapOfErrors = new HashMap<>();
             if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs().isEmpty()) {
                 mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
@@ -404,7 +406,7 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsers(Set<String> usernamesOrEmails, UserDetailsImpl user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsers(Set<String> usernamesOrEmails, String userUsername, String userEmail) {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> emails = new HashSet<>();
         Set<String> usernames = new HashSet<>();
@@ -419,13 +421,11 @@ public class AdminService {
                 invalidInputs.add(identifier);
             }
         }
-        String ownUsername = genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class);
-        if (usernames.contains(ownUsername)) {
-            ownUserInInputs.add(ownUsername);
+        if (usernames.contains(userUsername)) {
+            ownUserInInputs.add(userUsername);
         }
-        String ownEmail = genericAesStaticEncryptorDecryptor.decrypt(user.getUser().getEmail(), String.class);
-        if (emails.contains(ownEmail)) {
-            ownUserInInputs.add(ownEmail);
+        if (emails.contains(userEmail)) {
+            ownUserInInputs.add(userEmail);
         }
         return new ValidateInputsForDeleteOrReadUsersResultDto(invalidInputs, usernames, emails, ownUserInInputs);
     }
