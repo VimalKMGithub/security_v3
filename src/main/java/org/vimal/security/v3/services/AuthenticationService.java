@@ -215,7 +215,7 @@ public class AuthenticationService {
         if (toggleEnabled) {
             switch (type) {
                 case EMAIL_MFA -> {
-                    mailService.sendEmailAsync(user.getEmail(), "Otp to enable email Mfa", generateOtpForEmailMfa(user), OTP);
+                    mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp to enable email Mfa", generateOtpForEmailMfa(user), OTP);
                     return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
                 }
                 case AUTHENTICATOR_APP_MFA -> {
@@ -225,7 +225,7 @@ public class AuthenticationService {
         } else {
             switch (type) {
                 case EMAIL_MFA -> {
-                    mailService.sendEmailAsync(user.getEmail(), "Otp to disable email Mfa", generateOtpForEmailMfa(user), OTP);
+                    mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp to disable email Mfa", generateOtpForEmailMfa(user), OTP);
                     return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
                 }
                 case AUTHENTICATOR_APP_MFA -> {
@@ -431,7 +431,7 @@ public class AuthenticationService {
     }
 
     private Map<String, String> sendEmailOtpToLoginMfa(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        mailService.sendEmailAsync(user.getEmail(), "Otp to verify email Mfa to login", generateOtpForEmailMfa(user), OTP);
+        mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp to verify email Mfa to login", generateOtpForEmailMfa(user), OTP);
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
     }
 
