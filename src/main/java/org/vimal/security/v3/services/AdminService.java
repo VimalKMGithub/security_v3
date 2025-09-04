@@ -524,99 +524,105 @@ public class AdminService {
         }
     }
 
-//    public ResponseEntity<Map<String, Object>> readUsers(Set<String> usernamesOrEmails, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-//        boolean isLenient = validateLeniency(leniency);
-//        UserDetailsImpl reader = getCurrentAuthenticatedUserDetails();
-//        String readerHighestTopRole = getUserHighestTopRole(reader);
-//        Variant variant = unleash.getVariant(ALLOW_READ_USERS.name());
-//        if (entryCheck(variant, readerHighestTopRole)) {
-//            checkUserCanReadUsers(readerHighestTopRole);
-//            validateInputsSizeForUsersReading(variant, usernamesOrEmails);
-//            String decryptedReaderUsername = genericAesStaticEncryptorDecryptor.decrypt(reader.getUsername(), String.class);
-//            String decryptedReaderEmail = genericAesStaticEncryptorDecryptor.decrypt(reader.getUser().getEmail(), String.class);
-//            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, decryptedReaderUsername, decryptedReaderEmail);
-//            Map<String, Object> mapOfErrors = new HashMap<>();
-//            if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs().isEmpty()) {
-//                mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
-//            }
-//            if (!isLenient) {
-//                if (!mapOfErrors.isEmpty()) {
-//                    return ResponseEntity.badRequest().body(mapOfErrors);
-//                }
-//            }
-//            if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs().isEmpty()) {
-//                for (String ownIdentifier : validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()) {
-//                    if (USERNAME_PATTERN.matcher(ownIdentifier).matches()) {
-//                        validateInputsForDeleteOrReadUsersResult.getUsernames().add(ownIdentifier);
-//                    } else if (EMAIL_PATTERN.matcher(ownIdentifier).matches()) {
-//                        validateInputsForDeleteOrReadUsersResult.getEmails().add(ownIdentifier);
-//                    }
-//                }
-//            }
-//            Set<String> tempSet = new HashSet<>();
-//            Map<String, String> tempMap = new HashMap<>();
-//            String tempStr;
-//            for (String username : validateInputsForDeleteOrReadUsersResult.getUsernames()) {
-//                tempStr = genericAesStaticEncryptorDecryptor.encrypt(username);
-//                tempSet.add(tempStr);
-//                tempMap.put(tempStr, username);
-//            }
-//            List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
-//            for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
-//                if (!userModel.isAccountDeleted()) {
-//                    validateInputsForDeleteOrReadUsersResult.getUsernames().remove(tempMap.get(userModel.getUsername()));
-//                    users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
-//                }
-//            }
-//            tempSet.clear();
-//            tempMap.clear();
-//            for (String email : validateInputsForDeleteOrReadUsersResult.getEmails()) {
-//                tempStr = genericAesStaticEncryptorDecryptor.encrypt(email);
-//                tempSet.add(tempStr);
-//                tempMap.put(tempStr, email);
-//            }
-//            for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
-//                if (!userModel.isAccountDeleted()) {
-//                    validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
-//                    users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
-//                }
-//            }
-//            if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
-//                mapOfErrors.put("users_not_found_with_usernames", validateInputsForDeleteOrReadUsersResult.getUsernames());
-//            }
-//            if (!validateInputsForDeleteOrReadUsersResult.getEmails().isEmpty()) {
-//                mapOfErrors.put("users_not_found_with_emails", validateInputsForDeleteOrReadUsersResult.getEmails());
-//            }
-//            if (!isLenient) {
-//                if (!mapOfErrors.isEmpty()) {
-//                    return ResponseEntity.badRequest().body(mapOfErrors);
-//                }
-//            }
-//
-//        }
-//        throw new ServiceUnavailableException("Reading users is currently disabled. Please try again later");
-//    }
-//
-//    private void checkUserCanReadUsers(String readerHighestTopRole) {
-//        if (readerHighestTopRole == null && !unleash.isEnabled(ALLOW_READ_USERS_BY_USERS_HAVE_PERMISSION_TO_READ_USERS.name())) {
-//            throw new ServiceUnavailableException("Reading users is currently disabled. Please try again later");
-//        }
-//    }
-//
-//    private void validateInputsSizeForUsersReading(Variant variant, Set<String> usernamesOrEmails) {
-//        if (usernamesOrEmails.isEmpty()) {
-//            throw new SimpleBadRequestException("No users to read");
-//        }
-//        if (variant.isEnabled() && variant.getPayload().isPresent()) {
-//            int maxUsersToReadAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
-//            if (maxUsersToReadAtATime < 1) {
-//                maxUsersToReadAtATime = DEFAULT_MAX_USERS_TO_READ_AT_A_TIME;
-//            }
-//            if (usernamesOrEmails.size() > maxUsersToReadAtATime) {
-//                throw new SimpleBadRequestException("Cannot read more than " + maxUsersToReadAtATime + " users at a time");
-//            }
-//        } else if (usernamesOrEmails.size() > DEFAULT_MAX_USERS_TO_READ_AT_A_TIME) {
-//            throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_USERS_TO_READ_AT_A_TIME + " users at a time");
-//        }
-//    }
+    public ResponseEntity<Map<String, Object>> readUsers(Set<String> usernamesOrEmails, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean isLenient = validateLeniency(leniency);
+        UserDetailsImpl reader = getCurrentAuthenticatedUserDetails();
+        String readerHighestTopRole = getUserHighestTopRole(reader);
+        Variant variant = unleash.getVariant(ALLOW_READ_USERS.name());
+        if (entryCheck(variant, readerHighestTopRole)) {
+            checkUserCanReadUsers(readerHighestTopRole);
+            validateInputsSizeForUsersReading(variant, usernamesOrEmails);
+            String decryptedReaderUsername = genericAesStaticEncryptorDecryptor.decrypt(reader.getUsername(), String.class);
+            String decryptedReaderEmail = genericAesStaticEncryptorDecryptor.decrypt(reader.getUser().getEmail(), String.class);
+            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, decryptedReaderUsername, decryptedReaderEmail);
+            Map<String, Object> mapOfErrors = new HashMap<>();
+            if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs().isEmpty()) {
+                mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
+            }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest().body(mapOfErrors);
+                }
+            }
+            if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs().isEmpty()) {
+                for (String ownIdentifier : validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()) {
+                    if (USERNAME_PATTERN.matcher(ownIdentifier).matches()) {
+                        validateInputsForDeleteOrReadUsersResult.getUsernames().add(ownIdentifier);
+                    } else if (EMAIL_PATTERN.matcher(ownIdentifier).matches()) {
+                        validateInputsForDeleteOrReadUsersResult.getEmails().add(ownIdentifier);
+                    }
+                }
+            }
+            Set<String> tempSet = new HashSet<>();
+            Map<String, String> tempMap = new HashMap<>();
+            String tempStr;
+            for (String username : validateInputsForDeleteOrReadUsersResult.getUsernames()) {
+                tempStr = genericAesStaticEncryptorDecryptor.encrypt(username);
+                tempSet.add(tempStr);
+                tempMap.put(tempStr, username);
+            }
+            List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
+            for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
+                if (!userModel.isAccountDeleted()) {
+                    validateInputsForDeleteOrReadUsersResult.getUsernames().remove(tempMap.get(userModel.getUsername()));
+                    users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
+                }
+            }
+            tempSet.clear();
+            tempMap.clear();
+            for (String email : validateInputsForDeleteOrReadUsersResult.getEmails()) {
+                tempStr = genericAesStaticEncryptorDecryptor.encrypt(email);
+                tempSet.add(tempStr);
+                tempMap.put(tempStr, email);
+            }
+            for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
+                if (!userModel.isAccountDeleted()) {
+                    validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
+                    users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
+                }
+            }
+            if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
+                mapOfErrors.put("users_not_found_with_usernames", validateInputsForDeleteOrReadUsersResult.getUsernames());
+            }
+            if (!validateInputsForDeleteOrReadUsersResult.getEmails().isEmpty()) {
+                mapOfErrors.put("users_not_found_with_emails", validateInputsForDeleteOrReadUsersResult.getEmails());
+            }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest().body(mapOfErrors);
+                }
+            }
+            if (isLenient && !mapOfErrors.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "found_users", users,
+                        "reasons_due_to_which_some_users_has_not_been_returned", mapOfErrors
+                ));
+            }
+            return ResponseEntity.ok(Map.of("found_users", users));
+        }
+        throw new ServiceUnavailableException("Reading users is currently disabled. Please try again later");
+    }
+
+    private void checkUserCanReadUsers(String readerHighestTopRole) {
+        if (readerHighestTopRole == null && !unleash.isEnabled(ALLOW_READ_USERS_BY_USERS_HAVE_PERMISSION_TO_READ_USERS.name())) {
+            throw new ServiceUnavailableException("Reading users is currently disabled. Please try again later");
+        }
+    }
+
+    private void validateInputsSizeForUsersReading(Variant variant, Set<String> usernamesOrEmails) {
+        if (usernamesOrEmails.isEmpty()) {
+            throw new SimpleBadRequestException("No users to read");
+        }
+        if (variant.isEnabled() && variant.getPayload().isPresent()) {
+            int maxUsersToReadAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
+            if (maxUsersToReadAtATime < 1) {
+                maxUsersToReadAtATime = DEFAULT_MAX_USERS_TO_READ_AT_A_TIME;
+            }
+            if (usernamesOrEmails.size() > maxUsersToReadAtATime) {
+                throw new SimpleBadRequestException("Cannot read more than " + maxUsersToReadAtATime + " users at a time");
+            }
+        } else if (usernamesOrEmails.size() > DEFAULT_MAX_USERS_TO_READ_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_USERS_TO_READ_AT_A_TIME + " users at a time");
+        }
+    }
 }
