@@ -359,6 +359,12 @@ public class AdminService {
             } else {
                 userRepo.saveAll(validateInputsForDeleteUsersResult.getUsersToDelete());
             }
+            if (isLenient && !validateInputsForDeleteUsersResult.getMapOfErrors().isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "message", "Some users deleted successfully",
+                        "reasons_due_to_which_some_users_has_not_been_deleted", validateInputsForDeleteUsersResult.getMapOfErrors()
+                ));
+            }
             return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
         }
         return ResponseEntity.ok(Map.of("message", "No users to delete"));
