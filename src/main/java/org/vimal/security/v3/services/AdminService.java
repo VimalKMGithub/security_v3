@@ -324,7 +324,7 @@ public class AdminService {
                 .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(creatorDecrypted))
                 .accountDeleted(dto.isAccountDeleted())
                 .accountDeletedAt(dto.isAccountDeleted() ? Instant.now() : null)
-                .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(creator) : null)
+                .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(creatorDecrypted) : null)
                 .build();
     }
 
