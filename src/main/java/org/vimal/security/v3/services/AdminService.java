@@ -378,7 +378,7 @@ public class AdminService {
             if (!mapOfErrors.isEmpty()) {
                 return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, null);
             }
-            return getUsersDeletionResult(validateInputsForDeleteOrReadUsersResult, deleter, deleterHighestTopRole, hardDelete);
+            return getUsersDeletionResult(validateInputsForDeleteOrReadUsersResult, decryptedDeleterUsername, deleterHighestTopRole, hardDelete);
         }
         throw new ServiceUnavailableException("Deletion of users is currently disabled. Please try again later");
     }
@@ -430,7 +430,7 @@ public class AdminService {
         return new ValidateInputsForDeleteOrReadUsersResultDto(invalidInputs, usernames, emails, ownUserInInputs);
     }
 
-    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult, UserDetailsImpl deleter, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult, String deleterUsername, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> tempSet = new HashSet<>();
         Map<String, String> tempMap = new HashMap<>();
         String tempStr;
@@ -443,7 +443,7 @@ public class AdminService {
         Set<String> restrictedRoles = new HashSet<>();
         for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
             validateInputsForDeleteOrReadUsersResult.getUsernames().remove(tempMap.get(userModel.getUsername()));
-            userDeletionResult(userModel, deleter, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
+            userDeletionResult(userModel, deleterUsername, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
         }
         tempSet.clear();
         tempMap.clear();
@@ -454,7 +454,7 @@ public class AdminService {
         }
         for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
             validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
-            userDeletionResult(userModel, deleter, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
+            userDeletionResult(userModel, deleterUsername, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
         }
         Map<String, Object> mapOfErrors = new HashMap<>();
         if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
@@ -469,7 +469,7 @@ public class AdminService {
         return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, usersToDelete);
     }
 
-    private void userDeletionResult(UserModel userModel, UserDetailsImpl deleter, String deleterHighestTopRole, Set<String> restrictedRoles, Set<UserModel> usersToDelete, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void userDeletionResult(UserModel userModel, String deleterUsername, String deleterHighestTopRole, Set<String> restrictedRoles, Set<UserModel> usersToDelete, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (hardDelete) {
             boolean tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
             if (tempBoolean) {
@@ -479,7 +479,7 @@ public class AdminService {
             if (!userModel.isAccountDeleted()) {
                 boolean tempBoolean = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
                 if (tempBoolean) {
-                    userModel.recordAccountDeletionStatus(true, genericAesRandomEncryptorDecryptor.encrypt(deleter.getUsername()));
+                    userModel.recordAccountDeletionStatus(true, genericAesRandomEncryptorDecryptor.encrypt(deleterUsername));
                     usersToDelete.add(userModel);
                 }
             }
