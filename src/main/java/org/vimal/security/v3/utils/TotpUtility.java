@@ -4,7 +4,6 @@ import com.eatthepath.otp.TimeBasedOneTimePasswordGenerator;
 import org.apache.commons.codec.binary.Base32;
 
 import javax.crypto.KeyGenerator;
-import javax.crypto.SecretKey;
 import javax.crypto.spec.SecretKeySpec;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -29,8 +28,7 @@ public final class TotpUtility {
     });
 
     public static String generateBase32Secret() {
-        byte[] secret = KEY_GENERATOR.get().generateKey().getEncoded();
-        return BASE_32.encodeToString(secret).replace("=", "");
+        return BASE_32.encodeToString(KEY_GENERATOR.get().generateKey().getEncoded()).replace("=", "");
     }
 
     public static String generateTotpUrl(String issuer, String accountName, String base32Secret) {
@@ -42,14 +40,10 @@ public final class TotpUtility {
     }
 
     private static String generateTotp(String base32Secret) throws InvalidKeyException {
-        return String.format("%06d", TOTP_GENERATOR.generateOneTimePassword(decodeBase32Secret(base32Secret), Instant.now()));
+        return TOTP_GENERATOR.generateOneTimePasswordString(new SecretKeySpec(BASE_32.decode(base32Secret), TOTP_GENERATOR.getAlgorithm()), Instant.now());
     }
 
     public static boolean verifyTotp(String base32Secret, String userInputCode) throws InvalidKeyException {
         return generateTotp(base32Secret).equals(userInputCode);
-    }
-
-    private static SecretKey decodeBase32Secret(String base32Secret) {
-        return new SecretKeySpec(BASE_32.decode(base32Secret), TOTP_GENERATOR.getAlgorithm());
     }
 }
