@@ -34,4 +34,10 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails, @RequestParam(defaultValue = "disable") String hard, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.deleteUsers(usernamesOrEmails, hard, leniency);
     }
+
+//    @GetMapping("/read/users")
+//    @PreAuthorize("@PreAuth.canReadUsers()")
+//    public ResponseEntity<Map<String, Object>> readUsers(@RequestBody Set<String> usernamesOrEmails, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+//        return adminService.readUsers(usernamesOrEmails, leniency);
+//    }
 }
