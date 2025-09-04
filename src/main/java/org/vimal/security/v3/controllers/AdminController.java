@@ -40,4 +40,10 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> readUsers(@RequestBody Set<String> usernamesOrEmails, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.readUsers(usernamesOrEmails, leniency);
     }
+
+//    @PutMapping("/update/users")
+//    @PreAuthorize("@PreAuth.canUpdateUsers()")
+//    public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+//        return adminService.updateUsers(dtos, leniency);
+//    }
 }

@@ -625,4 +625,42 @@ public class AdminService {
             throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_USERS_TO_READ_AT_A_TIME + " users at a time");
         }
     }
+    
+//    public ResponseEntity<Map<String, Object>> updateUsers(Set<UserUpdationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+//        boolean isLenient = validateLeniency(leniency);
+//        UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
+//        String updaterHighestTopRole = getUserHighestTopRole(updater);
+//        Variant variant = unleash.getVariant(ALLOW_UPDATE_USERS.name());
+//        if (entryCheck(variant, updaterHighestTopRole)) {
+//            checkUserCanUpdateUsers(updaterHighestTopRole);
+//            validateDtosSizeForUsersUpdation(variant, dtos);
+//            ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult = validateInputsForUsersUpdation(dtos, updaterHighestTopRole);
+//            Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersUpdationResult);
+//            if (!isLenient) {
+//                if (!mapOfErrors.isEmpty()) {
+//                    return ResponseEntity.badRequest().body(mapOfErrors);
+//                }
+//            }
+//            if (dtos.isEmpty()) {
+//                return ResponseEntity.ok(Map.of("message", "No users to update"));
+//            }
+//            Map<String, UserModel> usersMap = resolveUsers(validateInputsForUsersUpdationResult.getUsernames(), validateInputsForUsersUpdationResult.getEmails());
+//            if (!validateInputsForUsersUpdationResult.getUsernames().isEmpty()) {
+//                mapOfErrors.put("users_not_found_with_usernames", validateInputsForUsersUpdationResult.getUsernames());
+//            }
+//            if (!validateInputsForUsersUpdationResult.getEmails().isEmpty()) {
+//                mapOfErrors.put("users_not_found_with_emails", validateInputsForUsersUpdationResult.getEmails());
+//            }
+//            Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersUpdationResult.getRoles());
+//            if (!validateInputsForUsersUpdationResult.getRoles().isEmpty()) {
+//                mapOfErrors.put("missing_roles", validateInputsForUsersUpdationResult.getRoles());
+//            }
+//            if (!isLenient) {
+//                if (!mapOfErrors.isEmpty()) {
+//                    return ResponseEntity.badRequest().body(mapOfErrors);
+//                }
+//            }
+//            Set<UserModel> usersToUpdate = new HashSet<>();
+//        }
+//    }
 }
