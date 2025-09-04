@@ -131,6 +131,13 @@ public class AdminService {
         throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
     }
 
+    private boolean validateLeniency(String leniency) {
+        if (!TOGGLE_TYPE.contains(leniency.toLowerCase())) {
+            throw new SimpleBadRequestException("Unsupported leniency type: " + leniency + ". Supported values: " + TOGGLE_TYPE);
+        }
+        return leniency.equalsIgnoreCase("enable");
+    }
+
     private String getUserHighestTopRole(UserDetailsImpl userDetails) {
         String bestRole = null;
         int bestPriority = Integer.MAX_VALUE;
@@ -239,13 +246,6 @@ public class AdminService {
             }
         }
         return removeFromDtos;
-    }
-
-    private boolean validateLeniency(String leniency) {
-        if (!TOGGLE_TYPE.contains(leniency.toLowerCase())) {
-            throw new SimpleBadRequestException("Unsupported leniency type: " + leniency + ". Supported values: " + TOGGLE_TYPE);
-        }
-        return leniency.equalsIgnoreCase("enable");
     }
 
     private Map<String, Object> errorsStuffingIfAny(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) {
