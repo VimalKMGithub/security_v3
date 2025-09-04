@@ -131,9 +131,8 @@ public class AdminService {
                         "created_users", users,
                         "reasons_due_to_which_some_users_has_not_been_created", mapOfErrors
                 ));
-            } else {
-                return ResponseEntity.ok(Map.of("created_users", users));
             }
+            return ResponseEntity.ok(Map.of("created_users", users));
         }
         throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
     }
