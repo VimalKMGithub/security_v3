@@ -66,17 +66,20 @@ public class UserService {
             if (!invalidInputs.isEmpty()) {
                 return ResponseEntity.badRequest().body(Map.of("invalid_inputs", invalidInputs));
             }
-            if (userRepo.existsByUsername(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))) {
+            String encryptedUsername = genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername());
+            if (userRepo.existsByUsername(encryptedUsername)) {
                 throw new SimpleBadRequestException("Username: '" + dto.getUsername() + "' is already taken");
             }
-            if (userRepo.existsByEmail(genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail()))) {
+            String encryptedEmail = genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail());
+            if (userRepo.existsByEmail(encryptedEmail)) {
                 throw new SimpleBadRequestException("Email: '" + dto.getEmail() + "' is already taken");
             }
             String normalizedEmail = normalizeEmail(dto.getEmail());
-            if (userRepo.existsByRealEmail(genericAesStaticEncryptorDecryptor.encrypt(normalizedEmail))) {
+            String encryptedNormalizedEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedEmail);
+            if (userRepo.existsByRealEmail(encryptedNormalizedEmail)) {
                 throw new SimpleBadRequestException("Alias version of email: '" + dto.getEmail() + "' is already taken");
             }
-            UserModel user = toUserModel(dto, normalizedEmail);
+            UserModel user = toUserModel(dto, encryptedUsername, encryptedEmail, encryptedNormalizedEmail);
             boolean shouldVerifyRegisteredEmail = unleash.isEnabled(REGISTRATION_EMAIL_VERIFICATION.name());
             user.setEmailVerified(!shouldVerifyRegisteredEmail);
             Map<String, Object> response = new HashMap<>();
@@ -93,11 +96,11 @@ public class UserService {
         throw new ServiceUnavailableException("Registration is currently disabled. Please try again later");
     }
 
-    private UserModel toUserModel(RegistrationDto dto, String normalizedEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UserModel toUserModel(RegistrationDto dto, String encryptedUsername, String encryptedEmail, String encryptedNormalizedEmail) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return UserModel.builder()
-                .username(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))
-                .email(genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail()))
-                .realEmail(genericAesStaticEncryptorDecryptor.encrypt(normalizedEmail))
+                .username(encryptedUsername)
+                .email(encryptedEmail)
+                .realEmail(encryptedNormalizedEmail)
                 .password(passwordEncoder.encode(dto.getPassword()))
                 .firstName(dto.getFirstName())
                 .middleName(dto.getMiddleName())
