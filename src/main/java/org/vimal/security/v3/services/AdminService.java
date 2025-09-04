@@ -97,7 +97,7 @@ public class AdminService {
                 }
             }
             if (dtos.isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users to create"));
+                return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             Set<UserModel> newUsers = new HashSet<>();
             for (UserCreationDto dto : dtos) {
