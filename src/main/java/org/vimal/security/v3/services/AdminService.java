@@ -168,8 +168,10 @@ public class AdminService {
         Set<String> tempSet;
         UserCreationDto tempDto;
         boolean removeFromDtos;
+        boolean removeFromDtosSanitizeRoles;
         while (iterator.hasNext()) {
             removeFromDtos = false;
+            removeFromDtosSanitizeRoles = false;
             tempDto = iterator.next();
             tempSet = validateInputs(tempDto);
             if (!tempSet.isEmpty()) {
@@ -185,12 +187,12 @@ public class AdminService {
                 removeFromDtos = true;
             }
             if (tempDto.getRoles() != null && !tempDto.getRoles().isEmpty()) {
-                removeFromDtos = sanitizeRoles(tempDto.getRoles(), restrictedRoles, creatorHighestTopRole);
+                removeFromDtosSanitizeRoles = sanitizeRoles(tempDto.getRoles(), restrictedRoles, creatorHighestTopRole);
                 if (!tempDto.getRoles().isEmpty()) {
                     roles.addAll(tempDto.getRoles());
                 }
             }
-            if (removeFromDtos) {
+            if (removeFromDtos || removeFromDtosSanitizeRoles) {
                 iterator.remove();
             }
         }
