@@ -183,7 +183,7 @@ public class UserService {
         if (user.isEmailVerified()) {
             throw new SimpleBadRequestException("Email is already verified");
         }
-        mailService.sendEmailAsync(user.getEmail(), "Resending email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
+        mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Resending email verification link after registration", "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user), LINK);
         return Map.of("message", "Email verification link resent successfully. Please check your email");
     }
 
@@ -231,7 +231,7 @@ public class UserService {
         }
         switch (methodType) {
             case EMAIL_MFA -> {
-                mailService.sendEmailAsync(user.getEmail(), "Otp for resetting password", generateOtpForForgotPassword(user), OTP);
+                mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp for resetting password", generateOtpForForgotPassword(user), OTP);
                 return Map.of("Message", "Otp sent to your email. Please check your email to reset your password");
             }
             case AUTHENTICATOR_APP_MFA -> {
@@ -383,7 +383,7 @@ public class UserService {
     }
 
     private Map<String, String> sendEmailOtpToChangePassword(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        mailService.sendEmailAsync(user.getEmail(), "Otp for password change", generateOtpForPasswordChange(user), OTP);
+        mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp for password change", generateOtpForPasswordChange(user), OTP);
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
     }
 
@@ -482,14 +482,14 @@ public class UserService {
             }
             String normalizedNewEmail = normalizeEmail(newEmail);
             String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedNewEmail);
-            if (!user.getRealEmail().equals(normalizedNewEmail)) {
+            if (!user.getRealEmail().equals(encryptedNormalizedNewEmail)) {
                 if (userRepo.existsByRealEmail(encryptedNormalizedNewEmail)) {
                     throw new SimpleBadRequestException("Alias version of email: '" + newEmail + "' is already taken");
                 }
             }
             storeNewEmailForEmailChange(user, newEmail);
             mailService.sendEmailAsync(newEmail, "Otp for email change in new email", generateOtpForEmailChangeForNewEmail(user), OTP);
-            mailService.sendEmailAsync(user.getEmail(), "Otp for email change in old email", generateOtpForEmailChangeForOldEmail(user), OTP);
+            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp for email change in old email", generateOtpForEmailChangeForOldEmail(user), OTP);
             return Map.of("message", "Otp's sent to your new & old email. Please check your emails to verify your email change");
         }
         throw new ServiceUnavailableException("Email change is currently disabled. Please try again later");
@@ -531,6 +531,11 @@ public class UserService {
             } catch (SimpleBadRequestException ex) {
                 throw new SimpleBadRequestException("Invalid Otp's");
             }
+            try {
+                validatePassword(password);
+            } catch (SimpleBadRequestException ex) {
+                throw new SimpleBadRequestException("Invalid password");
+            }
             UserModel user = getCurrentAuthenticatedUser();
             String encryptedNewEmailChangeOtpKey = getEncryptedNewEmailChangeOtpKey(user);
             Object encryptedNewEmailOtp = redisService.get(encryptedNewEmailChangeOtpKey);
@@ -563,7 +568,7 @@ public class UserService {
             }
             String normalizedNewEmail = normalizeEmail(newEmail);
             String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedNewEmail);
-            if (!user.getRealEmail().equals(normalizedNewEmail)) {
+            if (!user.getRealEmail().equals(encryptedNormalizedNewEmail)) {
                 if (userRepo.existsByRealEmail(encryptedNormalizedNewEmail)) {
                     throw new SimpleBadRequestException("Alias version of email: '" + newEmail + "' is already taken");
                 }
@@ -615,7 +620,7 @@ public class UserService {
             }
             user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
             if (!passwordEncoder.matches(password, user.getPassword())) {
-                throw new SimpleBadRequestException("Invalid old password");
+                throw new SimpleBadRequestException("Invalid password");
             }
             selfDeleteAccount(user);
             return ResponseEntity.ok(Map.of("message", "Account deleted successfully"));
@@ -670,7 +675,7 @@ public class UserService {
     }
 
     private Map<String, String> sendEmailOtpToDeleteAccount(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        mailService.sendEmailAsync(user.getEmail(), "Otp for account deletion", generateEmailOtpForAccountDeletion(user), OTP);
+        mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp for account deletion", generateEmailOtpForAccountDeletion(user), OTP);
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
     }
 
@@ -778,7 +783,7 @@ public class UserService {
     }
 
     private SelfUpdationResultDto validateAndSet(UserModel user, SelfUpdationDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        var selfUpdationResult = new SelfUpdationResultDto(false, false, new HashSet<>());
+        SelfUpdationResultDto selfUpdationResult = new SelfUpdationResultDto(false, false, new HashSet<>());
         try {
             validatePassword(dto.getOldPassword());
             if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
