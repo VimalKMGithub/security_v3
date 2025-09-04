@@ -201,11 +201,11 @@ public class AuthenticationService {
         if (!unleash.isEnabled(mfaType.toFeatureFlag().name())) {
             throw new ServiceUnavailableException(type + " Mfa is disabled globally");
         }
-        boolean hasMFAType = user.hasMfaMethod(mfaType);
-        if (toggleEnabled && hasMFAType) {
+        boolean hasMfaType = user.hasMfaMethod(mfaType);
+        if (toggleEnabled && hasMfaType) {
             throw new SimpleBadRequestException(type + " Mfa is already enabled");
         }
-        if (!toggleEnabled && !hasMFAType) {
+        if (!toggleEnabled && !hasMfaType) {
             throw new SimpleBadRequestException(type + " Mfa is already disabled");
         }
         return mfaType;
@@ -225,7 +225,7 @@ public class AuthenticationService {
         } else {
             switch (type) {
                 case EMAIL_MFA -> {
-                    mailService.sendEmailAsync(user.getEmail(), "Otp to disable email MFA", generateOtpForEmailMfa(user), OTP);
+                    mailService.sendEmailAsync(user.getEmail(), "Otp to disable email Mfa", generateOtpForEmailMfa(user), OTP);
                     return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
                 }
                 case AUTHENTICATOR_APP_MFA -> {
