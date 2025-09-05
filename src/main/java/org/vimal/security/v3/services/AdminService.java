@@ -187,10 +187,14 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForUsersCreationResultDto validateInputsForUsersCreation(Set<UserCreationDto> dtos, String creatorHighestTopRole) {
+    private ValidateInputsForUsersCreationResultDto validateInputsForUsersCreation(Set<UserCreationDto> dtos, String creatorHighestTopRole) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> usernames = new HashSet<>();
+        Set<String> encryptedUsernames = new HashSet<>();
+        Map<String, String> encryptedUsernameToUsernameMap = new HashMap<>();
         Set<String> emails = new HashSet<>();
+        Set<String> encryptedEmails = new HashSet<>();
+        Map<String, String> encryptedEmailToEmailMap = new HashMap<>();
         Set<String> duplicateUsernamesInDtos = new HashSet<>();
         Set<String> duplicateEmailsInDtos = new HashSet<>();
         Set<String> roles = new HashSet<>();
@@ -201,6 +205,7 @@ public class AdminService {
         UserCreationDto tempDto;
         boolean removeFromDtos;
         boolean removeFromDtosSanitizeRoles;
+        String tempStr;
         while (iterator.hasNext()) {
             removeFromDtos = false;
             removeFromDtosSanitizeRoles = false;
@@ -210,13 +215,25 @@ public class AdminService {
                 invalidInputs.addAll(tempSet);
                 removeFromDtos = true;
             }
-            if (tempDto.getUsername() != null && USERNAME_PATTERN.matcher(tempDto.getUsername()).matches() && !usernames.add(tempDto.getUsername())) {
-                duplicateUsernamesInDtos.add(tempDto.getUsername());
-                removeFromDtos = true;
+            if (tempDto.getUsername() != null && USERNAME_PATTERN.matcher(tempDto.getUsername()).matches()) {
+                if (usernames.add(tempDto.getUsername())) {
+                    tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getUsername());
+                    encryptedUsernames.add(tempStr);
+                    encryptedUsernameToUsernameMap.put(tempStr, tempDto.getUsername());
+                } else {
+                    duplicateUsernamesInDtos.add(tempDto.getUsername());
+                    removeFromDtos = true;
+                }
             }
-            if (tempDto.getEmail() != null && EMAIL_PATTERN.matcher(tempDto.getEmail()).matches() && !emails.add(tempDto.getEmail())) {
-                duplicateEmailsInDtos.add(tempDto.getEmail());
-                removeFromDtos = true;
+            if (tempDto.getEmail() != null && EMAIL_PATTERN.matcher(tempDto.getEmail()).matches()) {
+                if (emails.add(tempDto.getEmail())) {
+                    tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getEmail());
+                    encryptedEmails.add(tempStr);
+                    encryptedEmailToEmailMap.put(tempStr, tempDto.getEmail());
+                } else {
+                    duplicateEmailsInDtos.add(tempDto.getEmail());
+                    removeFromDtos = true;
+                }
             }
             if (tempDto.getRoles() != null && !tempDto.getRoles().isEmpty()) {
                 removeFromDtosSanitizeRoles = sanitizeRoles(tempDto.getRoles(), restrictedRoles, creatorHighestTopRole);
@@ -228,7 +245,7 @@ public class AdminService {
                 iterator.remove();
             }
         }
-        return new ValidateInputsForUsersCreationResultDto(invalidInputs, usernames, emails, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
+        return new ValidateInputsForUsersCreationResultDto(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, encryptedEmails, encryptedEmailToEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
     }
 
     private boolean sanitizeRoles(Set<String> roles, Set<String> restrictedRoles, String userHighestTopRole) {
@@ -284,28 +301,13 @@ public class AdminService {
     }
 
     private AlreadyTakenUsernamesAndEmailsResultDto getAlreadyTakenUsernamesAndEmails(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        Set<String> tempSet = new HashSet<>();
-        Map<String, String> tempMap = new HashMap<>();
-        String tempStr;
-        for (String username : validateInputsForUsersCreationResult.getUsernames()) {
-            tempStr = genericAesStaticEncryptorDecryptor.encrypt(username);
-            tempSet.add(tempStr);
-            tempMap.put(tempStr, username);
-        }
         Set<String> alreadyTakenUsernames = new HashSet<>();
-        for (UserModel user : userRepo.findByUsernameIn(tempSet)) {
-            alreadyTakenUsernames.add(tempMap.get(user.getUsername()));
-        }
-        tempSet.clear();
-        tempMap.clear();
-        for (String email : validateInputsForUsersCreationResult.getEmails()) {
-            tempStr = genericAesStaticEncryptorDecryptor.encrypt(email);
-            tempSet.add(tempStr);
-            tempMap.put(tempStr, email);
+        for (UserModel user : userRepo.findByUsernameIn(validateInputsForUsersCreationResult.getEncryptedUsernames())) {
+            alreadyTakenUsernames.add(validateInputsForUsersCreationResult.getEncryptedUsernameToUsernameMap().get(user.getUsername()));
         }
         Set<String> alreadyTakenEmails = new HashSet<>();
-        for (UserModel user : userRepo.findByEmailIn(tempSet)) {
-            alreadyTakenEmails.add(tempMap.get(user.getEmail()));
+        for (UserModel user : userRepo.findByEmailIn(validateInputsForUsersCreationResult.getEncryptedEmails())) {
+            alreadyTakenEmails.add(validateInputsForUsersCreationResult.getEncryptedEmailToEmailMap().get(user.getEmail()));
         }
         return new AlreadyTakenUsernamesAndEmailsResultDto(alreadyTakenUsernames, alreadyTakenEmails);
     }
