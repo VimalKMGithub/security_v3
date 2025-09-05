@@ -532,9 +532,7 @@ public class AdminService {
         if (entryCheck(variant, readerHighestTopRole)) {
             checkUserCanReadUsers(readerHighestTopRole);
             validateInputsSizeForUsersReading(variant, usernamesOrEmails);
-            String decryptedReaderUsername = genericAesStaticEncryptorDecryptor.decrypt(reader.getUsername(), String.class);
-            String decryptedReaderEmail = genericAesStaticEncryptorDecryptor.decrypt(reader.getUser().getEmail(), String.class);
-            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, decryptedReaderUsername, decryptedReaderEmail);
+            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, genericAesStaticEncryptorDecryptor.decrypt(reader.getUsername(), String.class), genericAesStaticEncryptorDecryptor.decrypt(reader.getUser().getEmail(), String.class));
             Map<String, Object> mapOfErrors = new HashMap<>();
             if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs().isEmpty()) {
                 mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
@@ -625,7 +623,7 @@ public class AdminService {
             throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_USERS_TO_READ_AT_A_TIME + " users at a time");
         }
     }
-    
+
 //    public ResponseEntity<Map<String, Object>> updateUsers(Set<UserUpdationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
 //        boolean isLenient = validateLeniency(leniency);
 //        UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
