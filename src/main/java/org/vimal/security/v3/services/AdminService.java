@@ -507,12 +507,10 @@ public class AdminService {
         boolean collectUser = true;
         if (user.getRoles() != null && !user.getRoles().isEmpty()) {
             for (RoleModel role : user.getRoles()) {
-                if (!TOP_ROLES.getFirst().equals(userHighestTopRole)) {
-                    if (ROLE_PRIORITY_MAP.containsKey(role.getRoleName())) {
-                        if (userHighestTopRole == null || ROLE_PRIORITY_MAP.get(role.getRoleName()) <= ROLE_PRIORITY_MAP.get(userHighestTopRole)) {
-                            restrictedRoles.add(role.getRoleName());
-                            collectUser = false;
-                        }
+                if (!TOP_ROLES.getFirst().equals(userHighestTopRole) && ROLE_PRIORITY_MAP.containsKey(role.getRoleName())) {
+                    if (userHighestTopRole == null || ROLE_PRIORITY_MAP.get(role.getRoleName()) <= ROLE_PRIORITY_MAP.get(userHighestTopRole)) {
+                        restrictedRoles.add(role.getRoleName());
+                        collectUser = false;
                     }
                 }
             }
