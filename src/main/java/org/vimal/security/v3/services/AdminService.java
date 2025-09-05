@@ -108,7 +108,7 @@ public class AdminService {
                     }
                 }
                 if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
-                    newUsers.add(toUserModel(dto, new HashSet<>(), decryptedCreatorUsername));
+                    newUsers.add(toUserModel(dto, new HashSet<>(), decryptedCreatorUsername, validateInputsForUsersCreationResult.getUsernameToEncryptedUsernameMap(), validateInputsForUsersCreationResult.getEmailToEncryptedEmailMap()));
                 } else {
                     Set<RoleModel> rolesToAssign = new HashSet<>();
                     for (String roleName : dto.getRoles()) {
@@ -117,7 +117,7 @@ public class AdminService {
                             rolesToAssign.add(role);
                         }
                     }
-                    newUsers.add(toUserModel(dto, rolesToAssign, decryptedCreatorUsername));
+                    newUsers.add(toUserModel(dto, rolesToAssign, decryptedCreatorUsername, validateInputsForUsersCreationResult.getUsernameToEncryptedUsernameMap(), validateInputsForUsersCreationResult.getEmailToEncryptedEmailMap()));
                 }
             }
             if (newUsers.isEmpty()) {
@@ -193,9 +193,11 @@ public class AdminService {
         Set<String> usernames = new HashSet<>();
         Set<String> encryptedUsernames = new HashSet<>();
         Map<String, String> encryptedUsernameToUsernameMap = new HashMap<>();
+        Map<String, String> usernameToEncryptedUsernameMap = new HashMap<>();
         Set<String> emails = new HashSet<>();
         Set<String> encryptedEmails = new HashSet<>();
         Map<String, String> encryptedEmailToEmailMap = new HashMap<>();
+        Map<String, String> emailToEncryptedEmailMap = new HashMap<>();
         Set<String> duplicateUsernamesInDtos = new HashSet<>();
         Set<String> duplicateEmailsInDtos = new HashSet<>();
         Set<String> roles = new HashSet<>();
@@ -221,6 +223,7 @@ public class AdminService {
                     tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getUsername());
                     encryptedUsernames.add(tempStr);
                     encryptedUsernameToUsernameMap.put(tempStr, tempDto.getUsername());
+                    usernameToEncryptedUsernameMap.put(tempDto.getUsername(), tempStr);
                 } else {
                     duplicateUsernamesInDtos.add(tempDto.getUsername());
                     removeFromDtos = true;
@@ -231,6 +234,7 @@ public class AdminService {
                     tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getEmail());
                     encryptedEmails.add(tempStr);
                     encryptedEmailToEmailMap.put(tempStr, tempDto.getEmail());
+                    emailToEncryptedEmailMap.put(tempDto.getEmail(), tempStr);
                 } else {
                     duplicateEmailsInDtos.add(tempDto.getEmail());
                     removeFromDtos = true;
@@ -246,7 +250,7 @@ public class AdminService {
                 iterator.remove();
             }
         }
-        return new ValidateInputsForUsersCreationResultDto(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, encryptedEmails, encryptedEmailToEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
+        return new ValidateInputsForUsersCreationResultDto(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, usernameToEncryptedUsernameMap, encryptedEmails, encryptedEmailToEmailMap, emailToEncryptedEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
     }
 
     private boolean sanitizeRoles(Set<String> roles, Set<String> restrictedRoles, String userHighestTopRole) {
@@ -317,10 +321,10 @@ public class AdminService {
         return new AlreadyTakenUsernamesAndEmailsResultDto(alreadyTakenUsernames, alreadyTakenEmails);
     }
 
-    private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String decryptedCreatorUsername) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        String encryptedEmail = genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail());
+    private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String decryptedCreatorUsername, Map<String, String> usernameToEncryptedUsernameMap, Map<String, String> emailToEncryptedEmailMap) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        String encryptedEmail = emailToEncryptedEmailMap.get(dto.getEmail());
         return UserModel.builder()
-                .username(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))
+                .username(usernameToEncryptedUsernameMap.get(dto.getUsername()))
                 .email(encryptedEmail)
                 .realEmail(encryptedEmail)
                 .password(passwordEncoder.encode(dto.getPassword()))

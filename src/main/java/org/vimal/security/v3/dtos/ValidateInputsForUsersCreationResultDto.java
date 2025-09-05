@@ -16,8 +16,10 @@ public class ValidateInputsForUsersCreationResultDto {
     private Set<String> invalidInputs;
     private Set<String> encryptedUsernames;
     private Map<String, String> encryptedUsernameToUsernameMap;
+    private Map<String, String> usernameToEncryptedUsernameMap;
     private Set<String> encryptedEmails;
     private Map<String, String> encryptedEmailToEmailMap;
+    private Map<String, String> emailToEncryptedEmailMap;
     private Set<String> duplicateUsernamesInDtos;
     private Set<String> duplicateEmailsInDtos;
     private Set<String> roles;
