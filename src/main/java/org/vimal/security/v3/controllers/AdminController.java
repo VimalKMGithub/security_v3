@@ -18,6 +18,8 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.Set;
 
+import static org.vimal.security.v3.utils.ToggleUtility.DEFAULT_TOGGLE;
+
 @RestController
 @RequestMapping("/api/v1/admin")
 @RequiredArgsConstructor
@@ -26,25 +28,37 @@ public class AdminController {
 
     @PostMapping("/create/users")
     @PreAuthorize("@PreAuth.canCreateUsers()")
-    public ResponseEntity<Map<String, Object>> createUsers(@RequestBody Set<UserCreationDto> dtos, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.createUsers(dtos, leniency);
+    public ResponseEntity<Map<String, Object>> createUsers(@RequestBody Set<UserCreationDto> dtos,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.createUsers(
+                dtos,
+                leniency
+        );
     }
 
     @DeleteMapping("/delete/users")
     @PreAuthorize("@PreAuth.canDeleteUsers()")
-    public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails, @RequestParam(defaultValue = "disable") String hard, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String hard,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.deleteUsers(usernamesOrEmails, hard, leniency);
     }
 
     @GetMapping("/read/users")
     @PreAuthorize("@PreAuth.canReadUsers()")
-    public ResponseEntity<Map<String, Object>> readUsers(@RequestBody Set<String> usernamesOrEmails, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> readUsers(@RequestBody Set<String> usernamesOrEmails,
+                                                         @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.readUsers(usernamesOrEmails, leniency);
     }
 
     @PutMapping("/update/users")
     @PreAuthorize("@PreAuth.canUpdateUsers()")
-    public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.updateUsers(dtos, leniency);
     }
 }
