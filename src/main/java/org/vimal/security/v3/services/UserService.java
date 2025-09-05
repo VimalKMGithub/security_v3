@@ -350,8 +350,7 @@ public class UserService {
         validateTypeExistence(method);
         unleashUtility.isMfaEnabledGlobally();
         UserModel user = getCurrentAuthenticatedUser();
-        MfaType methodType = MfaType.valueOf(method.toUpperCase());
-        switch (methodType) {
+        switch (MfaType.valueOf(method.toUpperCase())) {
             case EMAIL_MFA -> {
                 if (user.getMfaMethods().isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
@@ -408,8 +407,7 @@ public class UserService {
         }
         unleashUtility.isMfaEnabledGlobally();
         UserModel user = getCurrentAuthenticatedUser();
-        MfaType methodType = MfaType.valueOf(dto.getMethod().toUpperCase());
-        switch (methodType) {
+        switch (MfaType.valueOf(dto.getMethod().toUpperCase())) {
             case EMAIL_MFA -> {
                 if (user.getMfaMethods().isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
@@ -478,8 +476,7 @@ public class UserService {
             if (userRepo.existsByEmail(encryptedNewEmail)) {
                 throw new SimpleBadRequestException("Email: '" + newEmail + "' is already taken");
             }
-            String normalizedNewEmail = normalizeEmail(newEmail);
-            String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedNewEmail);
+            String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizeEmail(newEmail));
             if (!user.getRealEmail().equals(encryptedNormalizedNewEmail)) {
                 if (userRepo.existsByRealEmail(encryptedNormalizedNewEmail)) {
                     throw new SimpleBadRequestException("Alias version of email: '" + newEmail + "' is already taken");
@@ -564,8 +561,7 @@ public class UserService {
             if (userRepo.existsByEmail(encryptedNewEmail)) {
                 throw new SimpleBadRequestException("Email: '" + newEmail + "' is already taken");
             }
-            String normalizedNewEmail = normalizeEmail(newEmail);
-            String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizedNewEmail);
+            String encryptedNormalizedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(normalizeEmail(newEmail));
             if (!user.getRealEmail().equals(encryptedNormalizedNewEmail)) {
                 if (userRepo.existsByRealEmail(encryptedNormalizedNewEmail)) {
                     throw new SimpleBadRequestException("Alias version of email: '" + newEmail + "' is already taken");
@@ -640,8 +636,7 @@ public class UserService {
             validateTypeExistence(method);
             unleashUtility.isMfaEnabledGlobally();
             UserModel user = getCurrentAuthenticatedUser();
-            MfaType methodType = MfaType.valueOf(method.toUpperCase());
-            switch (methodType) {
+            switch (MfaType.valueOf(method.toUpperCase())) {
                 case EMAIL_MFA -> {
                     if (user.getMfaMethods().isEmpty()) {
                         if (!unleash.isEnabled(FORCE_MFA.name())) {
@@ -697,8 +692,7 @@ public class UserService {
             }
             unleashUtility.isMfaEnabledGlobally();
             UserModel user = getCurrentAuthenticatedUser();
-            MfaType methodType = MfaType.valueOf(method.toUpperCase());
-            switch (methodType) {
+            switch (MfaType.valueOf(method.toUpperCase())) {
                 case EMAIL_MFA -> {
                     if (user.getMfaMethods().isEmpty()) {
                         if (!unleash.isEnabled(FORCE_MFA.name())) {
@@ -781,40 +775,42 @@ public class UserService {
     }
 
     private SelfUpdationResultDto validateAndSet(UserModel user, SelfUpdationDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        SelfUpdationResultDto selfUpdationResult = new SelfUpdationResultDto(false, false, new HashSet<>());
+        boolean isModified = false;
+        boolean shouldRemoveTokens = false;
+        Set<String> invalidInputs = new HashSet<>();
         try {
             validatePassword(dto.getOldPassword());
             if (!passwordEncoder.matches(dto.getOldPassword(), user.getPassword())) {
-                selfUpdationResult.getInvalidInputs().add("Invalid old password");
+                invalidInputs.add("Invalid old password");
             }
         } catch (SimpleBadRequestException ex) {
-            selfUpdationResult.getInvalidInputs().add("Invalid old password");
+            invalidInputs.add("Invalid old password");
         }
         if (dto.getFirstName() != null && !dto.getFirstName().equals(user.getFirstName())) {
             try {
                 validateFirstName(dto.getFirstName());
                 user.setFirstName(dto.getFirstName());
-                selfUpdationResult.setModified(true);
+                isModified = true;
             } catch (SimpleBadRequestException ex) {
-                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+                invalidInputs.add(ex.getMessage());
             }
         }
         if (dto.getMiddleName() != null && !dto.getMiddleName().equals(user.getMiddleName())) {
             try {
                 validateMiddleName(dto.getMiddleName());
                 user.setMiddleName(dto.getMiddleName());
-                selfUpdationResult.setModified(true);
+                isModified = true;
             } catch (SimpleBadRequestException ex) {
-                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+                invalidInputs.add(ex.getMessage());
             }
         }
         if (dto.getLastName() != null && !dto.getLastName().equals(user.getLastName())) {
             try {
                 validateLastName(dto.getLastName());
                 user.setLastName(dto.getLastName());
-                selfUpdationResult.setModified(true);
+                isModified = true;
             } catch (SimpleBadRequestException ex) {
-                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+                invalidInputs.add(ex.getMessage());
             }
         }
         if (dto.getUsername() != null && !dto.getUsername().equals(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class))) {
@@ -822,16 +818,16 @@ public class UserService {
                 validateUsername(dto.getUsername());
                 String encryptedUsername = genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername());
                 if (userRepo.existsByUsername(encryptedUsername)) {
-                    selfUpdationResult.getInvalidInputs().add("Username already taken");
+                    invalidInputs.add("Username already taken");
                 } else {
                     user.setUsername(encryptedUsername);
-                    selfUpdationResult.setModified(true);
-                    selfUpdationResult.setShouldRemoveTokens(true);
+                    isModified = true;
+                    shouldRemoveTokens = true;
                 }
             } catch (SimpleBadRequestException ex) {
-                selfUpdationResult.getInvalidInputs().add(ex.getMessage());
+                invalidInputs.add(ex.getMessage());
             }
         }
-        return selfUpdationResult;
+        return new SelfUpdationResultDto(isModified, shouldRemoveTokens, invalidInputs);
     }
 }
