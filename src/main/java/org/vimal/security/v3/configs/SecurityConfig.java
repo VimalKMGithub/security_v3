@@ -68,10 +68,8 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(63072000))
                         .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
-                .addFilterBefore(serverUpFilter,
-                        UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(accessTokenFilter,
-                        UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(serverUpFilter, UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(accessTokenFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
@@ -81,48 +79,51 @@ public class SecurityConfig {
                                                        UserDetailsService userDetailsService)
             throws Exception {
         AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.userDetailsService(userDetailsService)
-                .passwordEncoder(passwordEncoder);
+        builder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
         return builder.build();
     }
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new Argon2PasswordEncoder(16,
-                32,
-                2,
-                65536,
-                3);
+        return new Argon2PasswordEncoder(16, 32, 2, 65536, 3);
     }
 
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         configuration.setAllowedOriginPatterns(List.of("http://localhost:*"));
-        configuration.setAllowedMethods(List.of("GET",
-                "POST",
-                "PUT",
-                "PATCH",
-                "DELETE",
-                "OPTIONS"));
-        configuration.setAllowedHeaders(List.of("Authorization",
-                "Content-Type",
-                "Accept",
-                "Origin",
-                "X-Requested-With",
-                "X-XSRF-TOKEN",
-                "If-Modified-Since",
-                "Cache-Control"));
-        configuration.setExposedHeaders(List.of("Content-Disposition",
-                "X-XSRF-TOKEN",
-                "Authorization",
-                "X-Total-Count",
-                "Location"));
+        configuration.setAllowedMethods(List.of(
+                        "GET",
+                        "POST",
+                        "PUT",
+                        "PATCH",
+                        "DELETE",
+                        "OPTIONS"
+                )
+        );
+        configuration.setAllowedHeaders(List.of(
+                        "Authorization",
+                        "Content-Type",
+                        "Accept",
+                        "Origin",
+                        "X-Requested-With",
+                        "X-XSRF-TOKEN",
+                        "If-Modified-Since",
+                        "Cache-Control"
+                )
+        );
+        configuration.setExposedHeaders(List.of(
+                        "Content-Disposition",
+                        "X-XSRF-TOKEN",
+                        "Authorization",
+                        "X-Total-Count",
+                        "Location"
+                )
+        );
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**",
-                configuration);
+        source.registerCorsConfiguration("/**", configuration);
         return source;
     }
 }
