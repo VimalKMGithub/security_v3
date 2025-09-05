@@ -51,7 +51,7 @@ public final class ValidationUtility {
         validateOtp(otp, fieldName, DEFAULT_OTP_LENGTH);
     }
 
-    public static void validateOtp(String otp, String fieldName, int length) {
+    private static void validateOtp(String otp, String fieldName, int length) {
         validateStringIsNonNullAndNotBlank(otp, fieldName);
         if (otp.length() != length) {
             throw new SimpleBadRequestException(fieldName + " must be exactly " + length + " characters long");
