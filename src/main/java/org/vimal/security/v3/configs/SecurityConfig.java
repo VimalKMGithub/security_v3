@@ -52,7 +52,8 @@ public class SecurityConfig {
     private final ServerUpFilter serverUpFilter;
 
     @Bean
-    public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
+    public SecurityFilterChain filterChain(HttpSecurity http)
+            throws Exception {
         http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
@@ -77,7 +78,8 @@ public class SecurityConfig {
     @Bean
     public AuthenticationManager authenticationManager(HttpSecurity http,
                                                        PasswordEncoder passwordEncoder,
-                                                       UserDetailsService userDetailsService) throws Exception {
+                                                       UserDetailsService userDetailsService)
+            throws Exception {
         AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
         builder.userDetailsService(userDetailsService)
                 .passwordEncoder(passwordEncoder);
@@ -86,7 +88,11 @@ public class SecurityConfig {
 
     @Bean
     public PasswordEncoder passwordEncoder() {
-        return new Argon2PasswordEncoder(16, 32, 2, 65536, 3);
+        return new Argon2PasswordEncoder(16,
+                32,
+                2,
+                65536,
+                3);
     }
 
     @Bean
