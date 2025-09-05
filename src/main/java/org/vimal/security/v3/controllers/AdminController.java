@@ -6,6 +6,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.vimal.security.v3.dtos.UserCreationDto;
+import org.vimal.security.v3.dtos.UserUpdationDto;
 import org.vimal.security.v3.services.AdminService;
 
 import javax.crypto.BadPaddingException;
@@ -41,9 +42,9 @@ public class AdminController {
         return adminService.readUsers(usernamesOrEmails, leniency);
     }
 
-//    @PutMapping("/update/users")
-//    @PreAuthorize("@PreAuth.canUpdateUsers()")
-//    public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-//        return adminService.updateUsers(dtos, leniency);
-//    }
+    @PutMapping("/update/users")
+    @PreAuthorize("@PreAuth.canUpdateUsers()")
+    public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos, @RequestParam(defaultValue = "disable") String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.updateUsers(dtos, leniency);
+    }
 }
