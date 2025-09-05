@@ -16,7 +16,19 @@ public class ValidateInputsForUsersUpdationResultDto extends ValidateInputsForUs
     private Set<String> duplicateOldUsernames;
     private Set<String> invalidOldUsernames;
 
-    public ValidateInputsForUsersUpdationResultDto(Set<String> invalidInputs, Set<String> encryptedUsernames, Map<String, String> encryptedUsernameToUsernameMap, Set<String> encryptedEmails, Map<String, String> encryptedEmailToEmailMap, Set<String> duplicateUsernamesInDtos, Set<String> duplicateEmailsInDtos, Set<String> roles, Set<String> restrictedRoles, Set<String> encryptedOldUsernames, Map<String, String> encryptedOldUsernameToOldUsernameMap, Set<String> duplicateOldUsernames, Set<String> invalidOldUsernames) {
+    public ValidateInputsForUsersUpdationResultDto(Set<String> invalidInputs,
+                                                   Set<String> encryptedUsernames,
+                                                   Map<String, String> encryptedUsernameToUsernameMap,
+                                                   Set<String> encryptedEmails,
+                                                   Map<String, String> encryptedEmailToEmailMap,
+                                                   Set<String> duplicateUsernamesInDtos,
+                                                   Set<String> duplicateEmailsInDtos,
+                                                   Set<String> roles,
+                                                   Set<String> restrictedRoles,
+                                                   Set<String> encryptedOldUsernames,
+                                                   Map<String, String> encryptedOldUsernameToOldUsernameMap,
+                                                   Set<String> duplicateOldUsernames,
+                                                   Set<String> invalidOldUsernames) {
         super(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, encryptedEmails, encryptedEmailToEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
         this.encryptedOldUsernames = encryptedOldUsernames;
         this.encryptedOldUsernameToOldUsernameMap = encryptedOldUsernameToOldUsernameMap;
