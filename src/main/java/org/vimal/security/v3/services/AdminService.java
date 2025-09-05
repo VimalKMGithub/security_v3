@@ -100,6 +100,7 @@ public class AdminService {
                 return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             Set<UserModel> newUsers = new HashSet<>();
+            String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(creator.getUsername(), String.class);
             for (UserCreationDto dto : dtos) {
                 if (isLenient) {
                     if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().contains(dto.getUsername()) || alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().contains(dto.getEmail())) {
@@ -107,7 +108,7 @@ public class AdminService {
                     }
                 }
                 if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
-                    newUsers.add(toUserModel(dto, new HashSet<>(), creator.getUsername()));
+                    newUsers.add(toUserModel(dto, new HashSet<>(), decryptedCreatorUsername));
                 } else {
                     Set<RoleModel> rolesToAssign = new HashSet<>();
                     for (String roleName : dto.getRoles()) {
@@ -116,7 +117,7 @@ public class AdminService {
                             rolesToAssign.add(role);
                         }
                     }
-                    newUsers.add(toUserModel(dto, rolesToAssign, creator.getUsername()));
+                    newUsers.add(toUserModel(dto, rolesToAssign, decryptedCreatorUsername));
                 }
             }
             if (newUsers.isEmpty()) {
@@ -316,9 +317,8 @@ public class AdminService {
         return new AlreadyTakenUsernamesAndEmailsResultDto(alreadyTakenUsernames, alreadyTakenEmails);
     }
 
-    private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String creator) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String decryptedCreatorUsername) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedEmail = genericAesStaticEncryptorDecryptor.encrypt(dto.getEmail());
-        String creatorDecrypted = genericAesStaticEncryptorDecryptor.decrypt(creator, String.class);
         return UserModel.builder()
                 .username(genericAesStaticEncryptorDecryptor.encrypt(dto.getUsername()))
                 .email(encryptedEmail)
@@ -332,11 +332,11 @@ public class AdminService {
                 .accountEnabled(dto.isAccountEnabled())
                 .accountLocked(dto.isAccountLocked())
                 .lockedAt(dto.isAccountLocked() ? Instant.now() : null)
-                .createdBy(genericAesRandomEncryptorDecryptor.encrypt(creatorDecrypted))
-                .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(creatorDecrypted))
+                .createdBy(genericAesRandomEncryptorDecryptor.encrypt(decryptedCreatorUsername))
+                .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(decryptedCreatorUsername))
                 .accountDeleted(dto.isAccountDeleted())
                 .accountDeletedAt(dto.isAccountDeleted() ? Instant.now() : null)
-                .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(creatorDecrypted) : null)
+                .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(decryptedCreatorUsername) : null)
                 .build();
     }
 
