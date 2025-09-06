@@ -23,7 +23,7 @@ public final class TotpUtility {
             keyGen.init(160);
             return keyGen;
         } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("Totp algorithm not available", ex);
+            throw new IllegalArgumentException("Totp algorithm not available", ex);
         }
     });
 
