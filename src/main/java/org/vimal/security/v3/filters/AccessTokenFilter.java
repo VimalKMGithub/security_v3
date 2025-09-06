@@ -20,8 +20,6 @@ import static org.springframework.security.core.context.SecurityContextHolder.ge
 @Component
 @RequiredArgsConstructor
 public class AccessTokenFilter extends OncePerRequestFilter {
-    private static final String AUTHORIZATION = "Authorization";
-    private static final String BEARER = "Bearer ";
     private final AccessTokenUtility accessTokenUtility;
     private final ObjectMapper objectMapper;
 
@@ -30,9 +28,9 @@ public class AccessTokenFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws IOException {
         try {
-            String authorization = request.getHeader(AUTHORIZATION);
+            String authorization = request.getHeader("Authorization");
             if (authorization != null &&
-                    authorization.startsWith(BEARER) &&
+                    authorization.startsWith("Bearer ") &&
                     getContext().getAuthentication() == null) {
                 UserDetailsImpl userDetails = accessTokenUtility.verifyAccessToken(authorization.substring(7));
                 UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
