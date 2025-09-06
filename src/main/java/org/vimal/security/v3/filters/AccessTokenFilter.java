@@ -26,12 +26,20 @@ public class AccessTokenFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws IOException {
         try {
             String authorization = request.getHeader(AUTHORIZATION);
-            if (authorization != null && authorization.startsWith(BEARER) && getContext().getAuthentication() == null) {
+            if (authorization != null &&
+                    authorization.startsWith(BEARER) &&
+                    getContext().getAuthentication() == null) {
                 UserDetailsImpl userDetails = accessTokenUtility.verifyAccessToken(authorization.substring(7));
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(
+                        userDetails,
+                        null,
+                        userDetails.getAuthorities()
+                );
                 authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 getContext().setAuthentication(authentication);
             }
@@ -39,7 +47,13 @@ public class AccessTokenFilter extends OncePerRequestFilter {
         } catch (Exception ex) {
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             response.setContentType("application/json");
-            objectMapper.writeValue(response.getWriter(), Map.of("error", "Unauthorized", "message", ex.getMessage()));
+            objectMapper.writeValue(
+                    response.getWriter(),
+                    Map.of(
+                            "error", "Unauthorized",
+                            "message", ex.getMessage()
+                    )
+            );
         }
     }
 }

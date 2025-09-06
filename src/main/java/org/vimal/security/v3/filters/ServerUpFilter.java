@@ -21,11 +21,20 @@ public class ServerUpFilter extends OncePerRequestFilter {
     private final ObjectMapper objectMapper;
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain)
+            throws ServletException, IOException {
         if (!unleash.isEnabled(FeatureFlags.SERVER_UP.name())) {
             response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             response.setContentType("application/json");
-            objectMapper.writeValue(response.getWriter(), Map.of("message", "Service Unavailable", "reason", "Maintenance in progress"));
+            objectMapper.writeValue(
+                    response.getWriter(),
+                    Map.of(
+                            "message", "Service Unavailable",
+                            "reason", "Maintenance in progress"
+                    )
+            );
             return;
         }
         filterChain.doFilter(request, response);
