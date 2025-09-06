@@ -17,12 +17,15 @@ public class UnleashUtility {
 
     public boolean shouldDoMfa(UserModel user) {
         boolean doMfa = false;
-        if (user.isMfaEnabled() && !user.getMfaMethods().isEmpty()) {
+        if (user.isMfaEnabled() &&
+                !user.getMfaMethods().isEmpty()) {
             boolean unleashEmailMfa = unleash.isEnabled(MFA_EMAIL.name());
             boolean unleashAuthenticatorAppMfa = unleash.isEnabled(MFA_AUTHENTICATOR_APP.name());
-            if (unleashEmailMfa && user.hasMfaMethod(EMAIL_MFA)) {
+            if (unleashEmailMfa &&
+                    user.hasMfaMethod(EMAIL_MFA)) {
                 doMfa = true;
-            } else if (unleashAuthenticatorAppMfa && user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
+            } else if (unleashAuthenticatorAppMfa &&
+                    user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
                 doMfa = true;
             }
         }

@@ -16,13 +16,25 @@ public final class QrUtility {
     private static final String DEFAULT_IMAGE_FORMAT = "PNG";
     private static final QRCodeWriter QR_CODE_WRITER = new QRCodeWriter();
 
-    public static byte[] generateQrCode(String content) throws IOException, WriterException {
+    public static byte[] generateQrCode(String content)
+            throws IOException, WriterException {
         return generateQrCode(content, DEFAULT_SIZE, DEFAULT_IMAGE_FORMAT);
     }
 
-    private static byte[] generateQrCode(String content, int size, String format) throws WriterException, IOException {
+    private static byte[] generateQrCode(String content,
+                                         int size,
+                                         String format)
+            throws WriterException, IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        MatrixToImageWriter.writeToStream(QR_CODE_WRITER.encode(content, BarcodeFormat.QR_CODE, size, size), format, outputStream);
+        MatrixToImageWriter.writeToStream(QR_CODE_WRITER.encode(
+                        content,
+                        BarcodeFormat.QR_CODE,
+                        size,
+                        size
+                ),
+                format,
+                outputStream
+        );
         return outputStream.toByteArray();
     }
 }

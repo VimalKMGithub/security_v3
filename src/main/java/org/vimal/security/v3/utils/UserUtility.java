@@ -21,7 +21,9 @@ public final class UserUtility {
 
     public static Authentication getAuthenticationOfCurrentAuthenticatedUser() {
         Authentication authentication = getContext().getAuthentication();
-        if (authentication != null && authentication.isAuthenticated() && authentication.getPrincipal() instanceof UserDetailsImpl) {
+        if (authentication != null
+                && authentication.isAuthenticated()
+                && authentication.getPrincipal() instanceof UserDetailsImpl) {
             return authentication;
         }
         throw new UnauthorizedException("User not authenticated");

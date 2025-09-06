@@ -20,12 +20,16 @@ public final class EmailUtility {
     );
 
     public static String normalizeEmail(String email) {
-        String lowerCasedEmail = email.trim().toLowerCase();
+        String lowerCasedEmail = email.trim()
+                .toLowerCase();
         int atIndex = lowerCasedEmail.indexOf('@');
         String local = lowerCasedEmail.substring(0, atIndex);
         String domain = lowerCasedEmail.substring(atIndex + 1);
         if (REMOVE_DOTS.contains(domain)) {
-            local = local.replace(".", "");
+            local = local.replace(
+                    ".",
+                    ""
+            );
         }
         if (REMOVE_ALIAS_PART.contains(domain)) {
             int plusIndex = local.indexOf('+');

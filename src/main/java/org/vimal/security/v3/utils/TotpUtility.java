@@ -28,22 +28,45 @@ public final class TotpUtility {
     });
 
     public static String generateBase32Secret() {
-        return BASE_32.encodeToString(KEY_GENERATOR.get().generateKey().getEncoded()).replace("=", "");
+        return BASE_32.encodeToString(KEY_GENERATOR.get()
+                        .generateKey()
+                        .getEncoded())
+                .replace(
+                        "=",
+                        ""
+                );
     }
 
-    public static String generateTotpUrl(String issuer, String accountName, String base32Secret) {
-        return String.format("otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30", urlEncode(issuer), urlEncode(accountName), base32Secret, urlEncode(issuer));
+    public static String generateTotpUrl(String issuer,
+                                         String accountName,
+                                         String base32Secret) {
+        return String.format(
+                "otpauth://totp/%s:%s?secret=%s&issuer=%s&algorithm=SHA1&digits=6&period=30",
+                urlEncode(issuer),
+                urlEncode(accountName),
+                base32Secret,
+                urlEncode(issuer)
+        );
     }
 
     private static String urlEncode(String value) {
-        return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        return URLEncoder.encode(
+                value,
+                StandardCharsets.UTF_8
+        );
     }
 
     private static String generateTotp(String base32Secret) throws InvalidKeyException {
-        return TOTP_GENERATOR.generateOneTimePasswordString(new SecretKeySpec(BASE_32.decode(base32Secret), TOTP_GENERATOR.getAlgorithm()), Instant.now());
+        return TOTP_GENERATOR.generateOneTimePasswordString(new SecretKeySpec(
+                        BASE_32.decode(base32Secret),
+                        TOTP_GENERATOR.getAlgorithm()
+                ),
+                Instant.now()
+        );
     }
 
-    public static boolean verifyTotp(String base32Secret, String userInputCode) throws InvalidKeyException {
+    public static boolean verifyTotp(String base32Secret,
+                                     String userInputCode) throws InvalidKeyException {
         return generateTotp(base32Secret).equals(userInputCode);
     }
 }

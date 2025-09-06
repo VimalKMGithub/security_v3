@@ -11,6 +11,7 @@ public final class JsonUtility {
     private static final ObjectMapper objectMapper = new ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT);
 
     public static String toJson(Object obj) throws JsonProcessingException {
-        return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(obj);
+        return objectMapper.writerWithDefaultPrettyPrinter()
+                .writeValueAsString(obj);
     }
 }

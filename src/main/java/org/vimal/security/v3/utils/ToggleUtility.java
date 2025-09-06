@@ -7,5 +7,8 @@ public final class ToggleUtility {
     }
 
     public static final String DEFAULT_TOGGLE = "disable";
-    public static final Set<String> TOGGLE_TYPE = Set.of("enable", "disable");
+    public static final Set<String> TOGGLE_TYPE = Set.of(
+            "enable",
+            "disable"
+    );
 }
