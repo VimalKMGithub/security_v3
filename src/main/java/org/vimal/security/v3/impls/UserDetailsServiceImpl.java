@@ -34,7 +34,13 @@ public class UserDetailsServiceImpl implements UserDetailsService {
         if (!user.isEmailVerified()) {
             throw new EmailNotVerifiedException("Please verify your email");
         }
-        if (user.isAccountLocked() && user.getLockedAt().plus(1, ChronoUnit.DAYS).isAfter(Instant.now())) {
+        if (user.isAccountLocked() &&
+                user.getLockedAt()
+                        .plus(
+                                1,
+                                ChronoUnit.DAYS
+                        )
+                        .isAfter(Instant.now())) {
             throw new LockedException("Account is temporarily locked. Please try again later.");
         }
     }
