@@ -806,11 +806,6 @@ public class AdminService {
                     .isEmpty()) {
                 mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
             }
-            if (!isLenient &&
-                    !mapOfErrors.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(mapOfErrors);
-            }
             if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()
                     .isEmpty()) {
                 for (String ownIdentifier : validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()) {
@@ -824,6 +819,28 @@ public class AdminService {
                                 .add(ownIdentifier);
                     }
                 }
+            }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (validateInputsForDeleteOrReadUsersResult.getUsernames()
+                        .isEmpty() &&
+                        validateInputsForDeleteOrReadUsersResult.getEmails()
+                                .isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No users returned"));
+                }
+            } else if (validateInputsForDeleteOrReadUsersResult.getUsernames()
+                    .isEmpty() &&
+                    validateInputsForDeleteOrReadUsersResult.getEmails()
+                            .isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No users returned",
+                            "reasons_due_to_users_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             Set<String> tempSet = new HashSet<>();
             Map<String, String> tempMap = new HashMap<>();
