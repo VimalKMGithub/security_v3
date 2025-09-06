@@ -17,15 +17,19 @@ import java.security.NoSuchAlgorithmException;
 public class GenericAesStaticEncryptorDecryptor {
     private final AesStaticUtility aesStaticUtility;
 
-    public GenericAesStaticEncryptorDecryptor(PropertiesConfig propertiesConfig, ObjectMapper objectMapper) throws NoSuchAlgorithmException {
+    public GenericAesStaticEncryptorDecryptor(PropertiesConfig propertiesConfig,
+                                              ObjectMapper objectMapper) throws NoSuchAlgorithmException {
         this.aesStaticUtility = new AesStaticUtility(propertiesConfig.getGenericAesStaticSecretKey(), objectMapper);
     }
 
-    public String encrypt(Object data) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public String encrypt(Object data)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return aesStaticUtility.encrypt(data);
     }
 
-    public <T> T decrypt(String encryptedData, Class<T> targetClass) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public <T> T decrypt(String encryptedData,
+                         Class<T> targetClass)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return aesStaticUtility.decrypt(encryptedData, targetClass);
     }
 }

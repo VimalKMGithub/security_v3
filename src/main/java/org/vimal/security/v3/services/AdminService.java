@@ -627,168 +627,168 @@ public class AdminService {
         }
     }
 
-    public ResponseEntity<Map<String, Object>> updateUsers(Set<UserUpdationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        boolean isLenient = validateLeniency(leniency);
-        UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
-        String updaterHighestTopRole = getUserHighestTopRole(updater);
-        Variant variant = unleash.getVariant(ALLOW_UPDATE_USERS.name());
-        if (entryCheck(variant, updaterHighestTopRole)) {
-            checkUserCanUpdateUsers(updaterHighestTopRole);
-            validateDtosSizeForUsersUpdation(variant, dtos);
-            ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult = validateInputsForUsersUpdation(dtos, updaterHighestTopRole);
-            Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersUpdationResult);
-            moreErrorsStuffingIfAny(validateInputsForUsersUpdationResult, mapOfErrors);
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest().body(mapOfErrors);
-                }
-            }
-            if (dtos.isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users updated"));
-            }
-        }
-        throw new ServiceUnavailableException("Updating users is currently disabled. Please try again later");
-    }
-
-    private void checkUserCanUpdateUsers(String updaterHighestTopRole) {
-        if (updaterHighestTopRole == null && !unleash.isEnabled(ALLOW_UPDATE_USERS_BY_USERS_HAVE_PERMISSION_TO_UPDATE_USERS.name())) {
-            throw new ServiceUnavailableException("Updating users is currently disabled. Please try again later");
-        }
-    }
-
-    private void validateDtosSizeForUsersUpdation(Variant variant, Set<UserUpdationDto> dtos) {
-        if (dtos.isEmpty()) {
-            throw new SimpleBadRequestException("No users to update");
-        }
-        if (variant.isEnabled() && variant.getPayload().isPresent()) {
-            int maxUsersToUpdateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
-            if (maxUsersToUpdateAtATime < 1) {
-                maxUsersToUpdateAtATime = DEFAULT_MAX_USERS_TO_UPDATE_AT_A_TIME;
-            }
-            if (dtos.size() > maxUsersToUpdateAtATime) {
-                throw new SimpleBadRequestException("Cannot update more than " + maxUsersToUpdateAtATime + " users at a time");
-            }
-        } else if (dtos.size() > DEFAULT_MAX_USERS_TO_UPDATE_AT_A_TIME) {
-            throw new SimpleBadRequestException("Cannot update more than " + DEFAULT_MAX_USERS_TO_UPDATE_AT_A_TIME + " users at a time");
-        }
-    }
-
-    private ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdation(Set<UserUpdationDto> dtos, String updaterHighestTopRole) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        Set<String> invalidInputs = new HashSet<>();
-        Set<String> usernames = new HashSet<>();
-        Set<String> encryptedUsernames = new HashSet<>();
-        Map<String, String> encryptedUsernameToUsernameMap = new HashMap<>();
-        Set<String> emails = new HashSet<>();
-        Set<String> encryptedEmails = new HashSet<>();
-        Map<String, String> encryptedEmailToEmailMap = new HashMap<>();
-        Set<String> duplicateUsernamesInDtos = new HashSet<>();
-        Set<String> duplicateEmailsInDtos = new HashSet<>();
-        Set<String> roles = new HashSet<>();
-        Set<String> restrictedRoles = new HashSet<>();
-        Set<String> oldUsernames = new HashSet<>();
-        Set<String> encryptedOldUsernames = new HashSet<>();
-        Map<String, String> encryptedOldUsernameToOldUsernameMap = new HashMap<>();
-        Set<String> duplicateOldUsernames = new HashSet<>();
-        Set<String> invalidOldUsernames = new HashSet<>();
-        dtos.remove(null);
-        UserUpdationDto tempDto;
-        boolean removeFromDtos;
-        boolean removeFromDtosSanitizeRoles;
-        String tempStr;
-        Iterator<UserUpdationDto> iterator = dtos.iterator();
-        while (iterator.hasNext()) {
-            removeFromDtos = false;
-            removeFromDtosSanitizeRoles = false;
-            tempDto = iterator.next();
-            try {
-                validateUsername(tempDto.getOldUsername());
-                if (oldUsernames.add(tempDto.getOldUsername())) {
-                    tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getOldUsername());
-                    encryptedOldUsernames.add(tempStr);
-                    encryptedOldUsernameToOldUsernameMap.put(tempStr, tempDto.getOldUsername());
-                } else {
-                    duplicateOldUsernames.add(tempDto.getOldUsername());
-                    removeFromDtos = true;
-                }
-            } catch (SimpleBadRequestException ex) {
-                invalidOldUsernames.add(tempDto.getOldUsername());
-                removeFromDtos = true;
-            }
-            if (tempDto.getUsername() != null) {
-                try {
-                    validateUsername(tempDto.getUsername());
-                    if (usernames.add(tempDto.getUsername())) {
-                        tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getUsername());
-                        encryptedUsernames.add(tempStr);
-                        encryptedUsernameToUsernameMap.put(tempStr, tempDto.getUsername());
-                    } else {
-                        duplicateUsernamesInDtos.add(tempDto.getUsername());
-                        removeFromDtos = true;
-                    }
-                } catch (SimpleBadRequestException ex) {
-                    invalidInputs.add(ex.getMessage());
-                    removeFromDtos = true;
-                }
-            }
-            if (tempDto.getEmail() != null) {
-                try {
-                    validateEmail(tempDto.getEmail());
-                    if (emails.add(tempDto.getEmail())) {
-                        tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getEmail());
-                        encryptedEmails.add(tempStr);
-                        encryptedEmailToEmailMap.put(tempStr, tempDto.getEmail());
-                    } else {
-                        duplicateEmailsInDtos.add(tempDto.getEmail());
-                        removeFromDtos = true;
-                    }
-                } catch (SimpleBadRequestException ex) {
-                    invalidInputs.add(ex.getMessage());
-                    removeFromDtos = true;
-                }
-            }
-            if (tempDto.getRoles() != null && !tempDto.getRoles().isEmpty()) {
-                removeFromDtosSanitizeRoles = sanitizeRoles(tempDto.getRoles(), restrictedRoles, updaterHighestTopRole);
-                if (!tempDto.getRoles().isEmpty()) {
-                    roles.addAll(tempDto.getRoles());
-                }
-            }
-            if (tempDto.getFirstName() != null) {
-                try {
-                    validateFirstName(tempDto.getFirstName());
-                } catch (SimpleBadRequestException ex) {
-                    invalidInputs.add(ex.getMessage());
-                    removeFromDtos = true;
-                }
-            }
-            if (tempDto.getMiddleName() != null) {
-                try {
-                    validateMiddleName(tempDto.getMiddleName());
-                } catch (SimpleBadRequestException ex) {
-                    invalidInputs.add(ex.getMessage());
-                    removeFromDtos = true;
-                }
-            }
-            if (tempDto.getLastName() != null) {
-                try {
-                    validateLastName(tempDto.getLastName());
-                } catch (SimpleBadRequestException ex) {
-                    invalidInputs.add(ex.getMessage());
-                    removeFromDtos = true;
-                }
-            }
-            if (removeFromDtos || removeFromDtosSanitizeRoles) {
-                iterator.remove();
-            }
-        }
-        return new ValidateInputsForUsersUpdationResultDto(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, encryptedEmails, encryptedEmailToEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles, encryptedOldUsernames, encryptedOldUsernameToOldUsernameMap, duplicateOldUsernames, invalidOldUsernames);
-    }
-
-    private void moreErrorsStuffingIfAny(ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult, Map<String, Object> mapOfErrors) {
-        if (!validateInputsForUsersUpdationResult.getDuplicateOldUsernames().isEmpty()) {
-            mapOfErrors.put("duplicate_old_usernames_in_request", validateInputsForUsersUpdationResult.getDuplicateOldUsernames());
-        }
-        if (!validateInputsForUsersUpdationResult.getInvalidOldUsernames().isEmpty()) {
-            mapOfErrors.put("invalid_old_usernames", validateInputsForUsersUpdationResult.getInvalidOldUsernames());
-        }
-    }
+//    public ResponseEntity<Map<String, Object>> updateUsers(Set<UserUpdationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+//        boolean isLenient = validateLeniency(leniency);
+//        UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
+//        String updaterHighestTopRole = getUserHighestTopRole(updater);
+//        Variant variant = unleash.getVariant(ALLOW_UPDATE_USERS.name());
+//        if (entryCheck(variant, updaterHighestTopRole)) {
+//            checkUserCanUpdateUsers(updaterHighestTopRole);
+//            validateDtosSizeForUsersUpdation(variant, dtos);
+//            ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult = validateInputsForUsersUpdation(dtos, updaterHighestTopRole);
+//            Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersUpdationResult);
+//            moreErrorsStuffingIfAny(validateInputsForUsersUpdationResult, mapOfErrors);
+//            if (!isLenient) {
+//                if (!mapOfErrors.isEmpty()) {
+//                    return ResponseEntity.badRequest().body(mapOfErrors);
+//                }
+//            }
+//            if (dtos.isEmpty()) {
+//                return ResponseEntity.ok(Map.of("message", "No users updated"));
+//            }
+//        }
+//        throw new ServiceUnavailableException("Updating users is currently disabled. Please try again later");
+//    }
+//
+//    private void checkUserCanUpdateUsers(String updaterHighestTopRole) {
+//        if (updaterHighestTopRole == null && !unleash.isEnabled(ALLOW_UPDATE_USERS_BY_USERS_HAVE_PERMISSION_TO_UPDATE_USERS.name())) {
+//            throw new ServiceUnavailableException("Updating users is currently disabled. Please try again later");
+//        }
+//    }
+//
+//    private void validateDtosSizeForUsersUpdation(Variant variant, Set<UserUpdationDto> dtos) {
+//        if (dtos.isEmpty()) {
+//            throw new SimpleBadRequestException("No users to update");
+//        }
+//        if (variant.isEnabled() && variant.getPayload().isPresent()) {
+//            int maxUsersToUpdateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
+//            if (maxUsersToUpdateAtATime < 1) {
+//                maxUsersToUpdateAtATime = DEFAULT_MAX_USERS_TO_UPDATE_AT_A_TIME;
+//            }
+//            if (dtos.size() > maxUsersToUpdateAtATime) {
+//                throw new SimpleBadRequestException("Cannot update more than " + maxUsersToUpdateAtATime + " users at a time");
+//            }
+//        } else if (dtos.size() > DEFAULT_MAX_USERS_TO_UPDATE_AT_A_TIME) {
+//            throw new SimpleBadRequestException("Cannot update more than " + DEFAULT_MAX_USERS_TO_UPDATE_AT_A_TIME + " users at a time");
+//        }
+//    }
+//
+//    private ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdation(Set<UserUpdationDto> dtos, String updaterHighestTopRole) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+//        Set<String> invalidInputs = new HashSet<>();
+//        Set<String> usernames = new HashSet<>();
+//        Set<String> encryptedUsernames = new HashSet<>();
+//        Map<String, String> encryptedUsernameToUsernameMap = new HashMap<>();
+//        Set<String> emails = new HashSet<>();
+//        Set<String> encryptedEmails = new HashSet<>();
+//        Map<String, String> encryptedEmailToEmailMap = new HashMap<>();
+//        Set<String> duplicateUsernamesInDtos = new HashSet<>();
+//        Set<String> duplicateEmailsInDtos = new HashSet<>();
+//        Set<String> roles = new HashSet<>();
+//        Set<String> restrictedRoles = new HashSet<>();
+//        Set<String> oldUsernames = new HashSet<>();
+//        Set<String> encryptedOldUsernames = new HashSet<>();
+//        Map<String, String> encryptedOldUsernameToOldUsernameMap = new HashMap<>();
+//        Set<String> duplicateOldUsernames = new HashSet<>();
+//        Set<String> invalidOldUsernames = new HashSet<>();
+//        dtos.remove(null);
+//        UserUpdationDto tempDto;
+//        boolean removeFromDtos;
+//        boolean removeFromDtosSanitizeRoles;
+//        String tempStr;
+//        Iterator<UserUpdationDto> iterator = dtos.iterator();
+//        while (iterator.hasNext()) {
+//            removeFromDtos = false;
+//            removeFromDtosSanitizeRoles = false;
+//            tempDto = iterator.next();
+//            try {
+//                validateUsername(tempDto.getOldUsername());
+//                if (oldUsernames.add(tempDto.getOldUsername())) {
+//                    tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getOldUsername());
+//                    encryptedOldUsernames.add(tempStr);
+//                    encryptedOldUsernameToOldUsernameMap.put(tempStr, tempDto.getOldUsername());
+//                } else {
+//                    duplicateOldUsernames.add(tempDto.getOldUsername());
+//                    removeFromDtos = true;
+//                }
+//            } catch (SimpleBadRequestException ex) {
+//                invalidOldUsernames.add(tempDto.getOldUsername());
+//                removeFromDtos = true;
+//            }
+//            if (tempDto.getUsername() != null) {
+//                try {
+//                    validateUsername(tempDto.getUsername());
+//                    if (usernames.add(tempDto.getUsername())) {
+//                        tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getUsername());
+//                        encryptedUsernames.add(tempStr);
+//                        encryptedUsernameToUsernameMap.put(tempStr, tempDto.getUsername());
+//                    } else {
+//                        duplicateUsernamesInDtos.add(tempDto.getUsername());
+//                        removeFromDtos = true;
+//                    }
+//                } catch (SimpleBadRequestException ex) {
+//                    invalidInputs.add(ex.getMessage());
+//                    removeFromDtos = true;
+//                }
+//            }
+//            if (tempDto.getEmail() != null) {
+//                try {
+//                    validateEmail(tempDto.getEmail());
+//                    if (emails.add(tempDto.getEmail())) {
+//                        tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getEmail());
+//                        encryptedEmails.add(tempStr);
+//                        encryptedEmailToEmailMap.put(tempStr, tempDto.getEmail());
+//                    } else {
+//                        duplicateEmailsInDtos.add(tempDto.getEmail());
+//                        removeFromDtos = true;
+//                    }
+//                } catch (SimpleBadRequestException ex) {
+//                    invalidInputs.add(ex.getMessage());
+//                    removeFromDtos = true;
+//                }
+//            }
+//            if (tempDto.getRoles() != null && !tempDto.getRoles().isEmpty()) {
+//                removeFromDtosSanitizeRoles = sanitizeRoles(tempDto.getRoles(), restrictedRoles, updaterHighestTopRole);
+//                if (!tempDto.getRoles().isEmpty()) {
+//                    roles.addAll(tempDto.getRoles());
+//                }
+//            }
+//            if (tempDto.getFirstName() != null) {
+//                try {
+//                    validateFirstName(tempDto.getFirstName());
+//                } catch (SimpleBadRequestException ex) {
+//                    invalidInputs.add(ex.getMessage());
+//                    removeFromDtos = true;
+//                }
+//            }
+//            if (tempDto.getMiddleName() != null) {
+//                try {
+//                    validateMiddleName(tempDto.getMiddleName());
+//                } catch (SimpleBadRequestException ex) {
+//                    invalidInputs.add(ex.getMessage());
+//                    removeFromDtos = true;
+//                }
+//            }
+//            if (tempDto.getLastName() != null) {
+//                try {
+//                    validateLastName(tempDto.getLastName());
+//                } catch (SimpleBadRequestException ex) {
+//                    invalidInputs.add(ex.getMessage());
+//                    removeFromDtos = true;
+//                }
+//            }
+//            if (removeFromDtos || removeFromDtosSanitizeRoles) {
+//                iterator.remove();
+//            }
+//        }
+//        return new ValidateInputsForUsersUpdationResultDto(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, encryptedEmails, encryptedEmailToEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles, encryptedOldUsernames, encryptedOldUsernameToOldUsernameMap, duplicateOldUsernames, invalidOldUsernames);
+//    }
+//
+//    private void moreErrorsStuffingIfAny(ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult, Map<String, Object> mapOfErrors) {
+//        if (!validateInputsForUsersUpdationResult.getDuplicateOldUsernames().isEmpty()) {
+//            mapOfErrors.put("duplicate_old_usernames_in_request", validateInputsForUsersUpdationResult.getDuplicateOldUsernames());
+//        }
+//        if (!validateInputsForUsersUpdationResult.getInvalidOldUsernames().isEmpty()) {
+//            mapOfErrors.put("invalid_old_usernames", validateInputsForUsersUpdationResult.getInvalidOldUsernames());
+//        }
+//    }
 }

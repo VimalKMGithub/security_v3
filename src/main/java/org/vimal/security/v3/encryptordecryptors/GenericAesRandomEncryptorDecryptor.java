@@ -17,15 +17,25 @@ import java.security.NoSuchAlgorithmException;
 public class GenericAesRandomEncryptorDecryptor {
     private final AesRandomUtility aesRandomUtility;
 
-    public GenericAesRandomEncryptorDecryptor(PropertiesConfig propertiesConfig, ObjectMapper objectMapper) throws NoSuchAlgorithmException {
-        this.aesRandomUtility = new AesRandomUtility(propertiesConfig.getGenericAesRandomSecretKey(), objectMapper);
+    public GenericAesRandomEncryptorDecryptor(PropertiesConfig propertiesConfig,
+                                              ObjectMapper objectMapper) throws NoSuchAlgorithmException {
+        this.aesRandomUtility = new AesRandomUtility(
+                propertiesConfig.getGenericAesRandomSecretKey(),
+                objectMapper
+        );
     }
 
-    public String encrypt(Object data) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public String encrypt(Object data)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return aesRandomUtility.encrypt(data);
     }
 
-    public <T> T decrypt(String encryptedData, Class<T> targetClass) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return aesRandomUtility.decrypt(encryptedData, targetClass);
+    public <T> T decrypt(String encryptedData,
+                         Class<T> targetClass)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return aesRandomUtility.decrypt(
+                encryptedData,
+                targetClass
+        );
     }
 }
