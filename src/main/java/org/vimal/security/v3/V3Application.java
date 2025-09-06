@@ -13,7 +13,7 @@ import java.util.TimeZone;
         .VIA_DTO)
 public class V3Application {
     public static void main(String[] args) {
-        TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
+        TimeZone.setDefault(TimeZone.getTimeZone("UTC"));
         SpringApplication.run(V3Application.class, args);
     }
 }
