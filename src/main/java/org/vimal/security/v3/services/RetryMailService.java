@@ -17,10 +17,24 @@ public class RetryMailService {
     private final JavaMailSender mailSender;
     private final PropertiesConfig propertiesConfig;
 
-    @Retryable(retryFor = Exception.class, maxAttempts = 5, backoff = @Backoff(delay = 5000, multiplier = 2.0))
-    public void sendEmail(String to, String subject, String text) {
+    @Retryable(
+            retryFor = Exception.class,
+            maxAttempts = 5,
+            backoff = @Backoff(
+                    delay = 5000,
+                    multiplier = 2.0
+            )
+    )
+    public void sendEmail(String to,
+                          String subject,
+                          String text) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom(String.format("%s <%s>", propertiesConfig.getMailDisplayName(), "takenCareAuto"));
+        message.setFrom(String.format(
+                        "%s <%s>",
+                        propertiesConfig.getMailDisplayName(),
+                        "takenCareAuto"
+                )
+        );
         message.setTo(to);
         message.setSubject(subject);
         message.setText(text + getSignature());
@@ -28,8 +42,16 @@ public class RetryMailService {
     }
 
     @Recover
-    public void logIfSendEmailFails(Exception ex, String to, String subject, String text) {
-        log.error("Failed to send email to '{}' with subject '{}'. Error: {}", to, subject, ex.getMessage());
+    public void logIfSendEmailFails(Exception ex,
+                                    String to,
+                                    String subject,
+                                    String text) {
+        log.error(
+                "Failed to send email to '{}' with subject '{}'. Error: {}",
+                to,
+                subject,
+                ex.getMessage()
+        );
     }
 
     private String getSignature() {

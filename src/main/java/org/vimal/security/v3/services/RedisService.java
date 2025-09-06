@@ -15,20 +15,34 @@ public class RedisService {
     private static final Duration DEFAULT_TIME_TO_LIVE = Duration.ofMinutes(5);
     private final RedisTemplate<Object, Object> redisTemplate;
 
-    public void save(Object key, Object value) {
-        save(key, value, DEFAULT_TIME_TO_LIVE);
+    public void save(Object key,
+                     Object value) {
+        save(
+                key,
+                value,
+                DEFAULT_TIME_TO_LIVE
+        );
     }
 
-    public void save(Object key, Object value, Duration timeToLive) {
-        redisTemplate.opsForValue().set(key, value, timeToLive);
+    public void save(Object key,
+                     Object value,
+                     Duration timeToLive) {
+        redisTemplate.opsForValue()
+                .set(
+                        key,
+                        value,
+                        timeToLive
+                );
     }
 
     public Object get(Object key) {
-        return redisTemplate.opsForValue().get(key);
+        return redisTemplate.opsForValue()
+                .get(key);
     }
 
     public List<Object> getAll(Set<Object> keys) {
-        return redisTemplate.opsForValue().multiGet(keys);
+        return redisTemplate.opsForValue()
+                .multiGet(keys);
     }
 
     public void delete(Object key) {
