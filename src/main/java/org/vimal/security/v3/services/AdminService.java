@@ -667,12 +667,12 @@ public class AdminService {
         }
         Set<UserModel> usersToDelete = new HashSet<>();
         Set<String> restrictedRoles = new HashSet<>();
+        boolean tempBoolean;
         for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
-            if (!userModel.isAccountDeleted()) {
-                validateInputsForDeleteOrReadUsersResult.getUsernames()
-                        .remove(tempMap.get(userModel.getUsername()));
-            }
-            userDeletionResult(
+            tempStr = tempMap.get(userModel.getUsername());
+            validateInputsForDeleteOrReadUsersResult.getUsernames()
+                    .remove(tempStr);
+            tempBoolean = userDeletionResult(
                     userModel,
                     deleterUsername,
                     deleterHighestTopRole,
@@ -680,6 +680,10 @@ public class AdminService {
                     usersToDelete,
                     hardDelete
             );
+            if (tempBoolean) {
+                validateInputsForDeleteOrReadUsersResult.getUsernames()
+                        .add(tempStr);
+            }
         }
         tempSet.clear();
         tempMap.clear();
@@ -689,11 +693,10 @@ public class AdminService {
             tempMap.put(tempStr, email);
         }
         for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
-            if (!userModel.isAccountDeleted()) {
-                validateInputsForDeleteOrReadUsersResult.getEmails()
-                        .remove(tempMap.get(userModel.getEmail()));
-            }
-            userDeletionResult(
+            tempStr = tempMap.get(userModel.getEmail());
+            validateInputsForDeleteOrReadUsersResult.getEmails()
+                    .remove(tempStr);
+            tempBoolean = userDeletionResult(
                     userModel,
                     deleterUsername,
                     deleterHighestTopRole,
@@ -701,6 +704,10 @@ public class AdminService {
                     usersToDelete,
                     hardDelete
             );
+            if (tempBoolean) {
+                validateInputsForDeleteOrReadUsersResult.getEmails()
+                        .add(tempStr);
+            }
         }
         if (!validateInputsForDeleteOrReadUsersResult.getUsernames()
                 .isEmpty()) {
@@ -719,13 +726,14 @@ public class AdminService {
         );
     }
 
-    private void userDeletionResult(UserModel userModel,
-                                    String deleterUsername,
-                                    String deleterHighestTopRole,
-                                    Set<String> restrictedRoles,
-                                    Set<UserModel> usersToDelete,
-                                    boolean hardDelete)
+    private boolean userDeletionResult(UserModel userModel,
+                                       String deleterUsername,
+                                       String deleterHighestTopRole,
+                                       Set<String> restrictedRoles,
+                                       Set<UserModel> usersToDelete,
+                                       boolean hardDelete)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean recollectIdentifier = false;
         if (hardDelete) {
             boolean collectUser = validateRoleRestriction(
                     userModel,
@@ -749,8 +757,11 @@ public class AdminService {
                     );
                     usersToDelete.add(userModel);
                 }
+            } else {
+                recollectIdentifier = true;
             }
         }
+        return recollectIdentifier;
     }
 
     private boolean validateRoleRestriction(UserModel user,
