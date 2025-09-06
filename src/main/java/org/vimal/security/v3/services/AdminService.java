@@ -951,6 +951,7 @@ public class AdminService {
             UsersUpdationWithNewDetailsResultDto usersUpdationWithNewDetailsResult = updateUsersWithNewDetails(
                     dtos,
                     validateInputsForUsersUpdationResult,
+                    alreadyTakenUsernamesAndEmailsResult,
                     updater,
                     updaterHighestTopRole,
                     mapOfErrors
@@ -1251,6 +1252,7 @@ public class AdminService {
 
     private UsersUpdationWithNewDetailsResultDto updateUsersWithNewDetails(Set<UserUpdationDto> dtos,
                                                                            ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult,
+                                                                           AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult,
                                                                            UserDetailsImpl updater,
                                                                            String updaterHighestTopRole,
                                                                            Map<String, Object> mapOfErrors)
@@ -1297,6 +1299,10 @@ public class AdminService {
             isUpdated = false;
             shouldRemoveTokens = false;
             if (dto.getUsername() != null) {
+                if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
+                        .contains(dto.getUsername())) {
+                    continue;
+                }
                 tempStr = validateInputsForUsersUpdationResult.getUsernameToEncryptedUsernameMap()
                         .get(dto.getUsername());
                 if (!tempStr.equals(userToUpdate.getUsername())) {
@@ -1306,6 +1312,10 @@ public class AdminService {
                 }
             }
             if (dto.getEmail() != null) {
+                if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails()
+                        .contains(dto.getEmail())) {
+                    continue;
+                }
                 tempStr = validateInputsForUsersUpdationResult.getEmailToEncryptedEmailMap()
                         .get(dto.getEmail());
                 if (!tempStr.equals(userToUpdate.getEmail())) {
