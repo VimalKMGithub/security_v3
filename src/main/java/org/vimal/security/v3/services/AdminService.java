@@ -164,14 +164,21 @@ public class AdminService {
                     );
                 }
             }
+            mapOfErrors.remove("missing_roles");
             if (newUsers.isEmpty()) {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No users created",
+                            "reasons_due_to_which_users_has_not_been_created", mapOfErrors
+                    ));
+                }
                 return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
             for (UserModel userModel : userRepo.saveAll(newUsers)) {
                 users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
             }
-            mapOfErrors.remove("missing_roles");
             if (isLenient &&
                     !mapOfErrors.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
@@ -1320,6 +1327,7 @@ public class AdminService {
                         .get(dto.getEmail());
                 if (!tempStr.equals(userToUpdate.getEmail())) {
                     userToUpdate.setEmail(tempStr);
+                    userToUpdate.setRealEmail(tempStr);
                     isUpdated = true;
                     shouldRemoveTokens = true;
                 }
