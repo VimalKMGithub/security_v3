@@ -9,8 +9,8 @@ import static org.vimal.security.v3.enums.MfaType.DEFAULT_MFA;
 @Setter
 public class ResetPwdDto {
     private String usernameOrEmail;
-    public String otpTotp;
-    public String method = DEFAULT_MFA;
-    public String password;
-    public String confirmPassword;
+    private String otpTotp;
+    private String method = DEFAULT_MFA;
+    private String password;
+    private String confirmPassword;
 }

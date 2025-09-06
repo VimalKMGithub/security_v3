@@ -1,7 +1,6 @@
 package org.vimal.security.v3.encryptordecryptors;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Component;
 import org.vimal.security.v3.configs.PropertiesConfig;
 import org.vimal.security.v3.utils.AesRandomUtility;
@@ -17,25 +16,17 @@ import java.security.NoSuchAlgorithmException;
 public class GenericAesRandomEncryptorDecryptor {
     private final AesRandomUtility aesRandomUtility;
 
-    public GenericAesRandomEncryptorDecryptor(PropertiesConfig propertiesConfig,
-                                              ObjectMapper objectMapper) throws NoSuchAlgorithmException {
-        this.aesRandomUtility = new AesRandomUtility(
-                propertiesConfig.getGenericAesRandomSecretKey(),
-                objectMapper
-        );
+    public GenericAesRandomEncryptorDecryptor(PropertiesConfig propertiesConfig) throws NoSuchAlgorithmException {
+        this.aesRandomUtility = new AesRandomUtility(propertiesConfig.getGenericAesRandomSecretKey());
     }
 
-    public String encrypt(Object data)
+    public String encrypt(String data)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return aesRandomUtility.encrypt(data);
     }
 
-    public <T> T decrypt(String encryptedData,
-                         Class<T> targetClass)
+    public String decrypt(String encryptedData)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return aesRandomUtility.decrypt(
-                encryptedData,
-                targetClass
-        );
+        return aesRandomUtility.decrypt(encryptedData);
     }
 }
