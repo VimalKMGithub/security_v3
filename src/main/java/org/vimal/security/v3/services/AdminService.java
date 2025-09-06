@@ -81,10 +81,22 @@ public class AdminService {
                     creatorHighestTopRole
             );
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersCreationResult);
-            if (!isLenient &&
-                    !mapOfErrors.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(mapOfErrors);
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (dtos.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No users created"));
+                }
+            } else if (dtos.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No users created",
+                            "reasons_due_to_which_users_has_not_been_created", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No users created"));
+                }
             }
             AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
             if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
@@ -108,9 +120,6 @@ public class AdminService {
                     !mapOfErrors.isEmpty()) {
                 return ResponseEntity.badRequest()
                         .body(mapOfErrors);
-            }
-            if (dtos.isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             Set<UserModel> newUsers = new HashSet<>();
             String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(
