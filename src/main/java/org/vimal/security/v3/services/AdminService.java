@@ -1297,7 +1297,7 @@ public class AdminService {
             if (dto.getUsername() != null) {
                 tempStr = validateInputsForUsersUpdationResult.getUsernameToEncryptedUsernameMap()
                         .get(dto.getUsername());
-                if (!tempStr.equals(dto.getUsername())) {
+                if (!tempStr.equals(userToUpdate.getUsername())) {
                     userToUpdate.setUsername(tempStr);
                     isUpdated = true;
                     shouldRemoveTokens = true;
@@ -1306,7 +1306,7 @@ public class AdminService {
             if (dto.getEmail() != null) {
                 tempStr = validateInputsForUsersUpdationResult.getEmailToEncryptedEmailMap()
                         .get(dto.getEmail());
-                if (!tempStr.equals(dto.getEmail())) {
+                if (!tempStr.equals(userToUpdate.getEmail())) {
                     userToUpdate.setEmail(tempStr);
                     isUpdated = true;
                     shouldRemoveTokens = true;
