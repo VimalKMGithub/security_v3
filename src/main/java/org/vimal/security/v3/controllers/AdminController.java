@@ -43,7 +43,11 @@ public class AdminController {
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String hard,
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.deleteUsers(usernamesOrEmails, hard, leniency);
+        return adminService.deleteUsers(
+                usernamesOrEmails,
+                hard,
+                leniency
+        );
     }
 
     @GetMapping("/read/users")
@@ -51,7 +55,10 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> readUsers(@RequestBody Set<String> usernamesOrEmails,
                                                          @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.readUsers(usernamesOrEmails, leniency);
+        return adminService.readUsers(
+                usernamesOrEmails,
+                leniency
+        );
     }
 
     @PutMapping("/update/users")
@@ -59,6 +66,9 @@ public class AdminController {
     public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos,
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return adminService.updateUsers(dtos, leniency);
+        return adminService.updateUsers(
+                dtos,
+                leniency
+        );
     }
 }
