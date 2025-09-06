@@ -171,6 +171,7 @@ public class AdminService {
             for (UserModel userModel : userRepo.saveAll(newUsers)) {
                 users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
             }
+            mapOfErrors.remove("missing_roles");
             if (isLenient &&
                     !mapOfErrors.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
