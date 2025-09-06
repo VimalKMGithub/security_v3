@@ -60,15 +60,26 @@ public class AdminService {
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
-    public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos,
+                                                           String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
         String creatorHighestTopRole = getUserHighestTopRole(creator);
         Variant variant = unleash.getVariant(ALLOW_CREATE_USERS.name());
-        if (entryCheck(variant, creatorHighestTopRole)) {
+        if (entryCheck(
+                variant,
+                creatorHighestTopRole
+        )) {
             checkUserCanCreateUsers(creatorHighestTopRole);
-            validateDtosSizeForUsersCreation(variant, dtos);
-            ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(dtos, creatorHighestTopRole);
+            validateDtosSizeForUsersCreation(
+                    variant,
+                    dtos
+            );
+            ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult = validateInputsForUsersCreation(
+                    dtos,
+                    creatorHighestTopRole
+            );
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersCreationResult);
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
@@ -76,15 +87,18 @@ public class AdminService {
                 }
             }
             AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
-            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().isEmpty()) {
+            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
+                    .isEmpty()) {
                 mapOfErrors.put("already_taken_usernames", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames());
             }
-            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().isEmpty()) {
+            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails()
+                    .isEmpty()) {
                 mapOfErrors.put("already_taken_emails", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails());
             }
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest().body(mapOfErrors);
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
                 }
             }
             Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
@@ -93,22 +107,38 @@ public class AdminService {
             }
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest().body(mapOfErrors);
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
                 }
             }
             if (dtos.isEmpty()) {
                 return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             Set<UserModel> newUsers = new HashSet<>();
-            String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(creator.getUsername(), String.class);
+            String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(
+                    creator.getUsername(),
+                    String.class
+            );
             for (UserCreationDto dto : dtos) {
                 if (isLenient) {
-                    if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames().contains(dto.getUsername()) || alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails().contains(dto.getEmail())) {
+                    if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
+                            .contains(dto.getUsername()) ||
+                            alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails()
+                                    .contains(dto.getEmail())
+                    ) {
                         continue;
                     }
                 }
-                if (dto.getRoles() == null || dto.getRoles().isEmpty()) {
-                    newUsers.add(toUserModel(dto, new HashSet<>(), decryptedCreatorUsername, validateInputsForUsersCreationResult.getUsernameToEncryptedUsernameMap(), validateInputsForUsersCreationResult.getEmailToEncryptedEmailMap()));
+                if (dto.getRoles() == null ||
+                        dto.getRoles().isEmpty()) {
+                    newUsers.add(toUserModel(
+                                    dto,
+                                    new HashSet<>(),
+                                    decryptedCreatorUsername,
+                                    validateInputsForUsersCreationResult.getUsernameToEncryptedUsernameMap(),
+                                    validateInputsForUsersCreationResult.getEmailToEncryptedEmailMap()
+                            )
+                    );
                 } else {
                     Set<RoleModel> rolesToAssign = new HashSet<>();
                     for (String roleName : dto.getRoles()) {
@@ -117,7 +147,14 @@ public class AdminService {
                             rolesToAssign.add(role);
                         }
                     }
-                    newUsers.add(toUserModel(dto, rolesToAssign, decryptedCreatorUsername, validateInputsForUsersCreationResult.getUsernameToEncryptedUsernameMap(), validateInputsForUsersCreationResult.getEmailToEncryptedEmailMap()));
+                    newUsers.add(toUserModel(
+                                    dto,
+                                    rolesToAssign,
+                                    decryptedCreatorUsername,
+                                    validateInputsForUsersCreationResult.getUsernameToEncryptedUsernameMap(),
+                                    validateInputsForUsersCreationResult.getEmailToEncryptedEmailMap()
+                            )
+                    );
                 }
             }
             if (newUsers.isEmpty()) {
@@ -127,7 +164,8 @@ public class AdminService {
             for (UserModel userModel : userRepo.saveAll(newUsers)) {
                 users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
             }
-            if (isLenient && !mapOfErrors.isEmpty()) {
+            if (isLenient &&
+                    !mapOfErrors.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
                         "created_users", users,
                         "reasons_due_to_which_some_users_has_not_been_created", mapOfErrors
@@ -161,22 +199,31 @@ public class AdminService {
         return bestRole;
     }
 
-    private boolean entryCheck(Variant variant, String userHighestTopRole) {
-        return variant.isEnabled() || TOP_ROLES.getFirst().equals(userHighestTopRole);
+    private boolean entryCheck(Variant variant,
+                               String userHighestTopRole) {
+        return variant.isEnabled() ||
+                TOP_ROLES.getFirst().equals(userHighestTopRole);
     }
 
     private void checkUserCanCreateUsers(String userHighestTopRole) {
-        if (userHighestTopRole == null && !unleash.isEnabled(ALLOW_CREATE_USERS_BY_USERS_HAVE_PERMISSION_TO_CREATE_USERS.name())) {
+        if (userHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_CREATE_USERS_BY_USERS_HAVE_PERMISSION_TO_CREATE_USERS.name())) {
             throw new ServiceUnavailableException("Creation of new users is currently disabled. Please try again later");
         }
     }
 
-    private void validateDtosSizeForUsersCreation(Variant variant, Set<UserCreationDto> dtos) {
+    private void validateDtosSizeForUsersCreation(Variant variant,
+                                                  Set<UserCreationDto> dtos) {
         if (dtos.isEmpty()) {
             throw new SimpleBadRequestException("No users to create");
         }
-        if (variant.isEnabled() && variant.getPayload().isPresent()) {
-            int maxUsersToCreateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxUsersToCreateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
             if (maxUsersToCreateAtATime < 1) {
                 maxUsersToCreateAtATime = DEFAULT_MAX_USERS_TO_CREATE_AT_A_TIME;
             }
@@ -188,7 +235,9 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForUsersCreationResultDto validateInputsForUsersCreation(Set<UserCreationDto> dtos, String creatorHighestTopRole) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForUsersCreationResultDto validateInputsForUsersCreation(Set<UserCreationDto> dtos,
+                                                                                   String creatorHighestTopRole)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> usernames = new HashSet<>();
         Set<String> encryptedUsernames = new HashSet<>();
@@ -218,42 +267,80 @@ public class AdminService {
                 invalidInputs.addAll(tempSet);
                 removeFromDtos = true;
             }
-            if (tempDto.getUsername() != null && USERNAME_PATTERN.matcher(tempDto.getUsername()).matches()) {
+            if (tempDto.getUsername() != null &&
+                    USERNAME_PATTERN.matcher(tempDto.getUsername())
+                            .matches()) {
                 if (usernames.add(tempDto.getUsername())) {
                     tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getUsername());
                     encryptedUsernames.add(tempStr);
-                    encryptedUsernameToUsernameMap.put(tempStr, tempDto.getUsername());
-                    usernameToEncryptedUsernameMap.put(tempDto.getUsername(), tempStr);
+                    encryptedUsernameToUsernameMap.put(
+                            tempStr,
+                            tempDto.getUsername()
+                    );
+                    usernameToEncryptedUsernameMap.put(
+                            tempDto.getUsername(),
+                            tempStr
+                    );
                 } else {
                     duplicateUsernamesInDtos.add(tempDto.getUsername());
                     removeFromDtos = true;
                 }
             }
-            if (tempDto.getEmail() != null && EMAIL_PATTERN.matcher(tempDto.getEmail()).matches()) {
+            if (tempDto.getEmail() != null &&
+                    EMAIL_PATTERN.matcher(tempDto.getEmail())
+                            .matches()) {
                 if (emails.add(tempDto.getEmail())) {
                     tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getEmail());
                     encryptedEmails.add(tempStr);
-                    encryptedEmailToEmailMap.put(tempStr, tempDto.getEmail());
-                    emailToEncryptedEmailMap.put(tempDto.getEmail(), tempStr);
+                    encryptedEmailToEmailMap.put(
+                            tempStr,
+                            tempDto.getEmail()
+                    );
+                    emailToEncryptedEmailMap.put(
+                            tempDto.getEmail(),
+                            tempStr
+                    );
                 } else {
                     duplicateEmailsInDtos.add(tempDto.getEmail());
                     removeFromDtos = true;
                 }
             }
-            if (tempDto.getRoles() != null && !tempDto.getRoles().isEmpty()) {
-                removeFromDtosSanitizeRoles = sanitizeRoles(tempDto.getRoles(), restrictedRoles, creatorHighestTopRole);
-                if (!tempDto.getRoles().isEmpty()) {
+            if (tempDto.getRoles() != null &&
+                    !tempDto.getRoles()
+                            .isEmpty()) {
+                removeFromDtosSanitizeRoles = sanitizeRoles(
+                        tempDto.getRoles(),
+                        restrictedRoles,
+                        creatorHighestTopRole
+                );
+                if (!tempDto.getRoles()
+                        .isEmpty()) {
                     roles.addAll(tempDto.getRoles());
                 }
             }
-            if (removeFromDtos || removeFromDtosSanitizeRoles) {
+            if (removeFromDtos ||
+                    removeFromDtosSanitizeRoles) {
                 iterator.remove();
             }
         }
-        return new ValidateInputsForUsersCreationResultDto(invalidInputs, encryptedUsernames, encryptedUsernameToUsernameMap, usernameToEncryptedUsernameMap, encryptedEmails, encryptedEmailToEmailMap, emailToEncryptedEmailMap, duplicateUsernamesInDtos, duplicateEmailsInDtos, roles, restrictedRoles);
+        return new ValidateInputsForUsersCreationResultDto(
+                invalidInputs,
+                encryptedUsernames,
+                encryptedUsernameToUsernameMap,
+                usernameToEncryptedUsernameMap,
+                encryptedEmails,
+                encryptedEmailToEmailMap,
+                emailToEncryptedEmailMap,
+                duplicateUsernamesInDtos,
+                duplicateEmailsInDtos,
+                roles,
+                restrictedRoles
+        );
     }
 
-    private boolean sanitizeRoles(Set<String> roles, Set<String> restrictedRoles, String userHighestTopRole) {
+    private boolean sanitizeRoles(Set<String> roles,
+                                  Set<String> restrictedRoles,
+                                  String userHighestTopRole) {
         roles.remove(null);
         Iterator<String> iterator = roles.iterator();
         boolean removeFromDtos = false;
@@ -263,16 +350,25 @@ public class AdminService {
             if (temp.isBlank()) {
                 iterator.remove();
             } else {
-                removeFromDtos = validateRoleRestriction(temp, restrictedRoles, userHighestTopRole) || removeFromDtos;
+                removeFromDtos = validateRoleRestriction(
+                        temp,
+                        restrictedRoles,
+                        userHighestTopRole
+                ) || removeFromDtos;
             }
         }
         return removeFromDtos;
     }
 
-    private boolean validateRoleRestriction(String role, Set<String> restrictedRoles, String userHighestTopRole) {
+    private boolean validateRoleRestriction(String role,
+                                            Set<String> restrictedRoles,
+                                            String userHighestTopRole) {
         boolean isRestricted = false;
-        if (!TOP_ROLES.getFirst().equals(userHighestTopRole) && ROLE_PRIORITY_MAP.containsKey(role)) {
-            if (userHighestTopRole == null || ROLE_PRIORITY_MAP.get(role) <= ROLE_PRIORITY_MAP.get(userHighestTopRole)) {
+        if (!TOP_ROLES.getFirst()
+                .equals(userHighestTopRole) &&
+                ROLE_PRIORITY_MAP.containsKey(role)) {
+            if (userHighestTopRole == null ||
+                    ROLE_PRIORITY_MAP.get(role) <= ROLE_PRIORITY_MAP.get(userHighestTopRole)) {
                 restrictedRoles.add(role);
                 isRestricted = true;
             }
@@ -282,46 +378,64 @@ public class AdminService {
 
     private Map<String, Object> errorsStuffingIfAny(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) {
         Map<String, Object> mapOfErrors = new HashMap<>();
-        if (!validateInputsForUsersCreationResult.getInvalidInputs().isEmpty()) {
+        if (!validateInputsForUsersCreationResult.getInvalidInputs()
+                .isEmpty()) {
             mapOfErrors.put("invalid_inputs", validateInputsForUsersCreationResult.getInvalidInputs());
         }
-        if (!validateInputsForUsersCreationResult.getDuplicateUsernamesInDtos().isEmpty()) {
+        if (!validateInputsForUsersCreationResult.getDuplicateUsernamesInDtos()
+                .isEmpty()) {
             mapOfErrors.put("duplicate_usernames_in_request", validateInputsForUsersCreationResult.getDuplicateUsernamesInDtos());
         }
-        if (!validateInputsForUsersCreationResult.getDuplicateEmailsInDtos().isEmpty()) {
+        if (!validateInputsForUsersCreationResult.getDuplicateEmailsInDtos()
+                .isEmpty()) {
             mapOfErrors.put("duplicate_emails_in_request", validateInputsForUsersCreationResult.getDuplicateEmailsInDtos());
         }
-        if (!validateInputsForUsersCreationResult.getRestrictedRoles().isEmpty()) {
+        if (!validateInputsForUsersCreationResult.getRestrictedRoles()
+                .isEmpty()) {
             mapOfErrors.put("not_allowed_to_assign_roles", validateInputsForUsersCreationResult.getRestrictedRoles());
         }
         return mapOfErrors;
     }
 
     private Map<String, RoleModel> resolveRoles(Set<String> roles) {
-        if (roles == null || roles.isEmpty()) {
+        if (roles == null ||
+                roles.isEmpty()) {
             return new HashMap<>();
         }
         Map<String, RoleModel> resolvedRolesMap = new HashMap<>();
         for (RoleModel role : roleRepo.findAllById(roles)) {
             roles.remove(role.getRoleName());
-            resolvedRolesMap.put(role.getRoleName(), role);
+            resolvedRolesMap.put(
+                    role.getRoleName(),
+                    role
+            );
         }
         return resolvedRolesMap;
     }
 
-    private AlreadyTakenUsernamesAndEmailsResultDto getAlreadyTakenUsernamesAndEmails(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private AlreadyTakenUsernamesAndEmailsResultDto getAlreadyTakenUsernamesAndEmails(ValidateInputsForUsersCreationResultDto validateInputsForUsersCreationResult) {
         Set<String> alreadyTakenUsernames = new HashSet<>();
         for (UserModel user : userRepo.findByUsernameIn(validateInputsForUsersCreationResult.getEncryptedUsernames())) {
-            alreadyTakenUsernames.add(validateInputsForUsersCreationResult.getEncryptedUsernameToUsernameMap().get(user.getUsername()));
+            alreadyTakenUsernames.add(validateInputsForUsersCreationResult.getEncryptedUsernameToUsernameMap()
+                    .get(user.getUsername()));
         }
         Set<String> alreadyTakenEmails = new HashSet<>();
         for (UserModel user : userRepo.findByEmailIn(validateInputsForUsersCreationResult.getEncryptedEmails())) {
-            alreadyTakenEmails.add(validateInputsForUsersCreationResult.getEncryptedEmailToEmailMap().get(user.getEmail()));
+            alreadyTakenEmails.add(validateInputsForUsersCreationResult.getEncryptedEmailToEmailMap()
+                    .get(user.getEmail()));
         }
-        return new AlreadyTakenUsernamesAndEmailsResultDto(alreadyTakenUsernames, alreadyTakenEmails);
+        return new AlreadyTakenUsernamesAndEmailsResultDto(
+                alreadyTakenUsernames,
+                alreadyTakenEmails
+        );
     }
 
-    private UserModel toUserModel(UserCreationDto dto, Set<RoleModel> roles, String decryptedCreatorUsername, Map<String, String> usernameToEncryptedUsernameMap, Map<String, String> emailToEncryptedEmailMap) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UserModel toUserModel(UserCreationDto dto,
+                                  Set<RoleModel> roles,
+                                  String decryptedCreatorUsername,
+                                  Map<String, String> usernameToEncryptedUsernameMap,
+                                  Map<String, String> emailToEncryptedEmailMap)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedEmail = emailToEncryptedEmailMap.get(dto.getEmail());
         return UserModel.builder()
                 .username(usernameToEncryptedUsernameMap.get(dto.getUsername()))
@@ -337,43 +451,57 @@ public class AdminService {
                 .accountLocked(dto.isAccountLocked())
                 .lockedAt(dto.isAccountLocked() ? Instant.now() : null)
                 .createdBy(genericAesRandomEncryptorDecryptor.encrypt(decryptedCreatorUsername))
-                .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(decryptedCreatorUsername))
                 .accountDeleted(dto.isAccountDeleted())
                 .accountDeletedAt(dto.isAccountDeleted() ? Instant.now() : null)
                 .accountDeletedBy(dto.isAccountDeleted() ? genericAesRandomEncryptorDecryptor.encrypt(decryptedCreatorUsername) : null)
                 .build();
     }
 
-    public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails, String hard, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails,
+                                                           String hard,
+                                                           String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         boolean hardDelete = validateHardDeletion(hard);
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
         String deleterHighestTopRole = getUserHighestTopRole(deleter);
         if (hardDelete) {
-            if (unleash.isEnabled(ALLOW_HARD_DELETE_USERS.name()) || TOP_ROLES.getFirst().equals(deleterHighestTopRole)) {
+            if (unleash.isEnabled(ALLOW_HARD_DELETE_USERS.name()) ||
+                    TOP_ROLES.getFirst().equals(deleterHighestTopRole)) {
                 checkUserCanHardDeleteUsers(deleterHighestTopRole);
             } else {
                 throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
             }
         }
-        ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(usernamesOrEmails, deleter, deleterHighestTopRole, hardDelete);
+        ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsersResult = validateInputsForDeleteUsers(
+                usernamesOrEmails,
+                deleter,
+                deleterHighestTopRole,
+                hardDelete
+        );
         if (!isLenient) {
-            if (!validateInputsForDeleteUsersResult.getMapOfErrors().isEmpty()) {
-                return ResponseEntity.badRequest().body(validateInputsForDeleteUsersResult.getMapOfErrors());
+            if (!validateInputsForDeleteUsersResult.getMapOfErrors()
+                    .isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(validateInputsForDeleteUsersResult.getMapOfErrors());
             }
         }
-        if (!validateInputsForDeleteUsersResult.getUsersToDelete().isEmpty()) {
+        if (!validateInputsForDeleteUsersResult.getUsersToDelete()
+                .isEmpty()) {
             accessTokenUtility.revokeTokens(validateInputsForDeleteUsersResult.getUsersToDelete());
             if (hardDelete) {
                 userRepo.deleteAll(validateInputsForDeleteUsersResult.getUsersToDelete());
             } else {
                 userRepo.saveAll(validateInputsForDeleteUsersResult.getUsersToDelete());
             }
-            if (isLenient && !validateInputsForDeleteUsersResult.getMapOfErrors().isEmpty()) {
+            if (isLenient &&
+                    !validateInputsForDeleteUsersResult.getMapOfErrors()
+                            .isEmpty()) {
                 return ResponseEntity.ok(Map.of(
-                        "message", "Some users deleted successfully",
-                        "reasons_due_to_which_some_users_has_not_been_deleted", validateInputsForDeleteUsersResult.getMapOfErrors()
-                ));
+                                "message", "Some users deleted successfully",
+                                "reasons_due_to_which_some_users_has_not_been_deleted", validateInputsForDeleteUsersResult.getMapOfErrors()
+                        )
+                );
             }
             return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
         }
@@ -387,38 +515,70 @@ public class AdminService {
         return hard.equalsIgnoreCase("enable");
     }
 
-    private ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsers(Set<String> usernamesOrEmails, UserDetailsImpl deleter, String deleterHighestTopRole, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsers(Set<String> usernamesOrEmails,
+                                                                               UserDetailsImpl deleter,
+                                                                               String deleterHighestTopRole,
+                                                                               boolean hardDelete)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Variant variant = unleash.getVariant(ALLOW_DELETE_USERS.name());
         if (entryCheck(variant, deleterHighestTopRole)) {
             checkUserCanDeleteUsers(deleterHighestTopRole);
-            validateInputsSizeForUsersDeletion(variant, usernamesOrEmails);
-            String decryptedDeleterUsername = genericAesStaticEncryptorDecryptor.decrypt(deleter.getUsername(), String.class);
-            String decryptedDeleterEmail = genericAesStaticEncryptorDecryptor.decrypt(deleter.getUser().getEmail(), String.class);
-            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, decryptedDeleterUsername, decryptedDeleterEmail);
+            validateInputsSizeForUsersDeletion(
+                    variant,
+                    usernamesOrEmails
+            );
+            String decryptedDeleterUsername = genericAesStaticEncryptorDecryptor.decrypt(
+                    deleter.getUsername(),
+                    String.class
+            );
+            String decryptedDeleterEmail = genericAesStaticEncryptorDecryptor.decrypt(
+                    deleter.getUser().getEmail(),
+                    String.class
+            );
+            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(
+                    usernamesOrEmails,
+                    decryptedDeleterUsername,
+                    decryptedDeleterEmail
+            );
             Map<String, Object> mapOfErrors = new HashMap<>();
-            if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs().isEmpty()) {
+            if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs()
+                    .isEmpty()) {
                 mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
             }
-            if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs().isEmpty()) {
+            if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()
+                    .isEmpty()) {
                 mapOfErrors.put("you_cannot_delete_your_own_account_using_this_endpoint", validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs());
             }
-            return getUsersDeletionResult(validateInputsForDeleteOrReadUsersResult, decryptedDeleterUsername, deleterHighestTopRole, hardDelete, mapOfErrors);
+            return getUsersDeletionResult(
+                    validateInputsForDeleteOrReadUsersResult,
+                    decryptedDeleterUsername,
+                    deleterHighestTopRole,
+                    hardDelete,
+                    mapOfErrors
+            );
         }
         throw new ServiceUnavailableException("Deletion of users is currently disabled. Please try again later");
     }
 
     private void checkUserCanDeleteUsers(String deleterHighestTopRole) {
-        if (deleterHighestTopRole == null && !unleash.isEnabled(ALLOW_DELETE_USERS_BY_USERS_HAVE_PERMISSION_TO_DELETE_USERS.name())) {
+        if (deleterHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_DELETE_USERS_BY_USERS_HAVE_PERMISSION_TO_DELETE_USERS.name())) {
             throw new ServiceUnavailableException("Deletion of users is currently disabled. Please try again later");
         }
     }
 
-    private void validateInputsSizeForUsersDeletion(Variant variant, Set<String> usernamesOrEmails) {
+    private void validateInputsSizeForUsersDeletion(Variant variant,
+                                                    Set<String> usernamesOrEmails) {
         if (usernamesOrEmails.isEmpty()) {
             throw new SimpleBadRequestException("No users to delete");
         }
-        if (variant.isEnabled() && variant.getPayload().isPresent()) {
-            int maxUsersToDeleteAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxUsersToDeleteAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
             if (maxUsersToDeleteAtATime < 1) {
                 maxUsersToDeleteAtATime = DEFAULT_MAX_USERS_TO_DELETE_AT_A_TIME;
             }
@@ -430,16 +590,20 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsers(Set<String> usernamesOrEmails, String userUsername, String userEmail) {
+    private ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsers(Set<String> usernamesOrEmails,
+                                                                                           String userUsername,
+                                                                                           String userEmail) {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> emails = new HashSet<>();
         Set<String> usernames = new HashSet<>();
         Set<String> ownUserInInputs = new HashSet<>();
         usernamesOrEmails.remove(null);
         for (String identifier : usernamesOrEmails) {
-            if (USERNAME_PATTERN.matcher(identifier).matches()) {
+            if (USERNAME_PATTERN.matcher(identifier)
+                    .matches()) {
                 usernames.add(identifier);
-            } else if (EMAIL_PATTERN.matcher(identifier).matches()) {
+            } else if (EMAIL_PATTERN.matcher(identifier)
+                    .matches()) {
                 emails.add(identifier);
             } else {
                 invalidInputs.add(identifier);
@@ -453,10 +617,20 @@ public class AdminService {
             ownUserInInputs.add(userEmail);
             emails.remove(userEmail);
         }
-        return new ValidateInputsForDeleteOrReadUsersResultDto(invalidInputs, usernames, emails, ownUserInInputs);
+        return new ValidateInputsForDeleteOrReadUsersResultDto(
+                invalidInputs,
+                usernames,
+                emails,
+                ownUserInInputs
+        );
     }
 
-    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult, String deleterUsername, String deleterHighestTopRole, boolean hardDelete, Map<String, Object> mapOfErrors) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private ValidateInputsForDeleteUsersResultDto getUsersDeletionResult(ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult,
+                                                                         String deleterUsername,
+                                                                         String deleterHighestTopRole,
+                                                                         boolean hardDelete,
+                                                                         Map<String, Object> mapOfErrors)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> tempSet = new HashSet<>();
         Map<String, String> tempMap = new HashMap<>();
         String tempStr;
@@ -468,8 +642,16 @@ public class AdminService {
         Set<UserModel> usersToDelete = new HashSet<>();
         Set<String> restrictedRoles = new HashSet<>();
         for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
-            validateInputsForDeleteOrReadUsersResult.getUsernames().remove(tempMap.get(userModel.getUsername()));
-            userDeletionResult(userModel, deleterUsername, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
+            validateInputsForDeleteOrReadUsersResult.getUsernames()
+                    .remove(tempMap.get(userModel.getUsername()));
+            userDeletionResult(
+                    userModel,
+                    deleterUsername,
+                    deleterHighestTopRole,
+                    restrictedRoles,
+                    usersToDelete,
+                    hardDelete
+            );
         }
         tempSet.clear();
         tempMap.clear();
@@ -479,78 +661,143 @@ public class AdminService {
             tempMap.put(tempStr, email);
         }
         for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
-            validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
-            userDeletionResult(userModel, deleterUsername, deleterHighestTopRole, restrictedRoles, usersToDelete, hardDelete);
+            validateInputsForDeleteOrReadUsersResult.getEmails()
+                    .remove(tempMap.get(userModel.getEmail()));
+            userDeletionResult(
+                    userModel,
+                    deleterUsername,
+                    deleterHighestTopRole,
+                    restrictedRoles,
+                    usersToDelete,
+                    hardDelete
+            );
         }
-        if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
+        if (!validateInputsForDeleteOrReadUsersResult.getUsernames()
+                .isEmpty()) {
             mapOfErrors.put("users_not_found_with_usernames", validateInputsForDeleteOrReadUsersResult.getUsernames());
         }
-        if (!validateInputsForDeleteOrReadUsersResult.getEmails().isEmpty()) {
+        if (!validateInputsForDeleteOrReadUsersResult.getEmails()
+                .isEmpty()) {
             mapOfErrors.put("users_not_found_with_emails", validateInputsForDeleteOrReadUsersResult.getEmails());
         }
         if (!restrictedRoles.isEmpty()) {
             mapOfErrors.put("not_allowed_to_delete_users_having_roles", restrictedRoles);
         }
-        return new ValidateInputsForDeleteUsersResultDto(mapOfErrors, usersToDelete);
+        return new ValidateInputsForDeleteUsersResultDto(
+                mapOfErrors,
+                usersToDelete
+        );
     }
 
-    private void userDeletionResult(UserModel userModel, String deleterUsername, String deleterHighestTopRole, Set<String> restrictedRoles, Set<UserModel> usersToDelete, boolean hardDelete) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void userDeletionResult(UserModel userModel,
+                                    String deleterUsername,
+                                    String deleterHighestTopRole,
+                                    Set<String> restrictedRoles,
+                                    Set<UserModel> usersToDelete,
+                                    boolean hardDelete)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (hardDelete) {
-            boolean collectUser = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
+            boolean collectUser = validateRoleRestriction(
+                    userModel,
+                    deleterHighestTopRole,
+                    restrictedRoles
+            );
             if (!collectUser) {
                 usersToDelete.add(userModel);
             }
         } else {
             if (!userModel.isAccountDeleted()) {
-                boolean collectUser = validateRoleRestriction(userModel, deleterHighestTopRole, restrictedRoles);
+                boolean collectUser = validateRoleRestriction(
+                        userModel,
+                        deleterHighestTopRole,
+                        restrictedRoles
+                );
                 if (!collectUser) {
-                    userModel.recordAccountDeletionStatus(true, genericAesRandomEncryptorDecryptor.encrypt(deleterUsername));
+                    userModel.recordAccountDeletionStatus(
+                            true,
+                            genericAesRandomEncryptorDecryptor.encrypt(deleterUsername)
+                    );
                     usersToDelete.add(userModel);
                 }
             }
         }
     }
 
-    private boolean validateRoleRestriction(UserModel user, String userHighestTopRole, Set<String> restrictedRoles) {
+    private boolean validateRoleRestriction(UserModel user,
+                                            String userHighestTopRole,
+                                            Set<String> restrictedRoles) {
         boolean isRestricted = false;
-        if (user.getRoles() != null && !user.getRoles().isEmpty()) {
+        if (user.getRoles() != null &&
+                !user.getRoles()
+                        .isEmpty()) {
             for (RoleModel role : user.getRoles()) {
-                isRestricted = validateRoleRestriction(role.getRoleName(), restrictedRoles, userHighestTopRole) || isRestricted;
+                isRestricted = validateRoleRestriction(
+                        role.getRoleName(),
+                        restrictedRoles,
+                        userHighestTopRole
+                ) || isRestricted;
             }
         }
         return isRestricted;
     }
 
     private void checkUserCanHardDeleteUsers(String userHighestTopRole) {
-        if (userHighestTopRole == null && !unleash.isEnabled(ALLOW_HARD_DELETE_USERS_BY_USERS_HAVE_PERMISSION_TO_DELETE_USERS.name())) {
+        if (userHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_HARD_DELETE_USERS_BY_USERS_HAVE_PERMISSION_TO_DELETE_USERS.name())) {
             throw new ServiceUnavailableException("Hard deletion of users is currently disabled. Please try again later");
         }
     }
 
-    public ResponseEntity<Map<String, Object>> readUsers(Set<String> usernamesOrEmails, String leniency) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> readUsers(Set<String> usernamesOrEmails,
+                                                         String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl reader = getCurrentAuthenticatedUserDetails();
         String readerHighestTopRole = getUserHighestTopRole(reader);
         Variant variant = unleash.getVariant(ALLOW_READ_USERS.name());
-        if (entryCheck(variant, readerHighestTopRole)) {
+        if (entryCheck(
+                variant,
+                readerHighestTopRole
+        )) {
             checkUserCanReadUsers(readerHighestTopRole);
-            validateInputsSizeForUsersReading(variant, usernamesOrEmails);
-            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(usernamesOrEmails, genericAesStaticEncryptorDecryptor.decrypt(reader.getUsername(), String.class), genericAesStaticEncryptorDecryptor.decrypt(reader.getUser().getEmail(), String.class));
+            validateInputsSizeForUsersReading(
+                    variant,
+                    usernamesOrEmails
+            );
+            ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(
+                    usernamesOrEmails,
+                    genericAesStaticEncryptorDecryptor.decrypt(
+                            reader.getUsername(),
+                            String.class
+                    ),
+                    genericAesStaticEncryptorDecryptor.decrypt(
+                            reader.getUser()
+                                    .getEmail(),
+                            String.class
+                    )
+            );
             Map<String, Object> mapOfErrors = new HashMap<>();
-            if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs().isEmpty()) {
+            if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs()
+                    .isEmpty()) {
                 mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
             }
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest().body(mapOfErrors);
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
                 }
             }
-            if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs().isEmpty()) {
+            if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()
+                    .isEmpty()) {
                 for (String ownIdentifier : validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()) {
-                    if (USERNAME_PATTERN.matcher(ownIdentifier).matches()) {
-                        validateInputsForDeleteOrReadUsersResult.getUsernames().add(ownIdentifier);
-                    } else if (EMAIL_PATTERN.matcher(ownIdentifier).matches()) {
-                        validateInputsForDeleteOrReadUsersResult.getEmails().add(ownIdentifier);
+                    if (USERNAME_PATTERN.matcher(ownIdentifier)
+                            .matches()) {
+                        validateInputsForDeleteOrReadUsersResult.getUsernames()
+                                .add(ownIdentifier);
+                    } else if (EMAIL_PATTERN.matcher(ownIdentifier)
+                            .matches()) {
+                        validateInputsForDeleteOrReadUsersResult.getEmails()
+                                .add(ownIdentifier);
                     }
                 }
             }
@@ -565,7 +812,8 @@ public class AdminService {
             List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
             for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
                 if (!userModel.isAccountDeleted()) {
-                    validateInputsForDeleteOrReadUsersResult.getUsernames().remove(tempMap.get(userModel.getUsername()));
+                    validateInputsForDeleteOrReadUsersResult.getUsernames()
+                            .remove(tempMap.get(userModel.getUsername()));
                     users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
                 }
             }
@@ -578,22 +826,27 @@ public class AdminService {
             }
             for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
                 if (!userModel.isAccountDeleted()) {
-                    validateInputsForDeleteOrReadUsersResult.getEmails().remove(tempMap.get(userModel.getEmail()));
+                    validateInputsForDeleteOrReadUsersResult.getEmails()
+                            .remove(tempMap.get(userModel.getEmail()));
                     users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
                 }
             }
-            if (!validateInputsForDeleteOrReadUsersResult.getUsernames().isEmpty()) {
+            if (!validateInputsForDeleteOrReadUsersResult.getUsernames()
+                    .isEmpty()) {
                 mapOfErrors.put("users_not_found_with_usernames", validateInputsForDeleteOrReadUsersResult.getUsernames());
             }
-            if (!validateInputsForDeleteOrReadUsersResult.getEmails().isEmpty()) {
+            if (!validateInputsForDeleteOrReadUsersResult.getEmails()
+                    .isEmpty()) {
                 mapOfErrors.put("users_not_found_with_emails", validateInputsForDeleteOrReadUsersResult.getEmails());
             }
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest().body(mapOfErrors);
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
                 }
             }
-            if (isLenient && !mapOfErrors.isEmpty()) {
+            if (isLenient &&
+                    !mapOfErrors.isEmpty()) {
                 return ResponseEntity.ok(Map.of(
                         "found_users", users,
                         "reasons_due_to_which_some_users_has_not_been_returned", mapOfErrors
@@ -605,17 +858,24 @@ public class AdminService {
     }
 
     private void checkUserCanReadUsers(String readerHighestTopRole) {
-        if (readerHighestTopRole == null && !unleash.isEnabled(ALLOW_READ_USERS_BY_USERS_HAVE_PERMISSION_TO_READ_USERS.name())) {
+        if (readerHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_READ_USERS_BY_USERS_HAVE_PERMISSION_TO_READ_USERS.name())) {
             throw new ServiceUnavailableException("Reading users is currently disabled. Please try again later");
         }
     }
 
-    private void validateInputsSizeForUsersReading(Variant variant, Set<String> usernamesOrEmails) {
+    private void validateInputsSizeForUsersReading(Variant variant,
+                                                   Set<String> usernamesOrEmails) {
         if (usernamesOrEmails.isEmpty()) {
             throw new SimpleBadRequestException("No users to read");
         }
-        if (variant.isEnabled() && variant.getPayload().isPresent()) {
-            int maxUsersToReadAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload().get().getValue()));
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxUsersToReadAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
             if (maxUsersToReadAtATime < 1) {
                 maxUsersToReadAtATime = DEFAULT_MAX_USERS_TO_READ_AT_A_TIME;
             }
