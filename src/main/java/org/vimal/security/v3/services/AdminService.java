@@ -493,11 +493,15 @@ public class AdminService {
                 deleterHighestTopRole,
                 hardDelete
         );
-        if (!isLenient &&
-                !validateInputsForDeleteUsersResult.getMapOfErrors()
-                        .isEmpty()) {
-            return ResponseEntity.badRequest()
-                    .body(validateInputsForDeleteUsersResult.getMapOfErrors());
+        if (!isLenient) {
+            if (!validateInputsForDeleteUsersResult.getMapOfErrors()
+                    .isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(validateInputsForDeleteUsersResult.getMapOfErrors());
+            } else if (validateInputsForDeleteUsersResult.getUsersToDelete()
+                    .isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No users deleted"));
+            }
         }
         if (!validateInputsForDeleteUsersResult.getUsersToDelete()
                 .isEmpty()) {
@@ -517,8 +521,17 @@ public class AdminService {
                 );
             }
             return ResponseEntity.ok(Map.of("message", "Users deleted successfully"));
+        } else {
+            if (!validateInputsForDeleteUsersResult.getMapOfErrors()
+                    .isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                                "message", "No users deleted",
+                                "reasons_due_to_which_users_has_not_been_deleted", validateInputsForDeleteUsersResult.getMapOfErrors()
+                        )
+                );
+            }
+            return ResponseEntity.ok(Map.of("message", "No users deleted"));
         }
-        return ResponseEntity.ok(Map.of("message", "No users to delete"));
     }
 
     private boolean validateHardDeletion(String hard) {
