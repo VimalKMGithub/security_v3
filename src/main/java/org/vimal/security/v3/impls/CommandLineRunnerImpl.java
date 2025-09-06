@@ -51,7 +51,8 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void run(String... args) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public void run(String... args)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         log.info("Initializing system permissions, roles, and default users.");
         initializeSystemPermissionsIfAbsent();
         initializeSystemRolesIfAbsent();
@@ -59,7 +60,8 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         log.info("System permissions, roles, and default users initialized successfully.");
     }
 
-    private void initializeSystemPermissionsIfAbsent() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void initializeSystemPermissionsIfAbsent()
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> permissionNames = new HashSet<>();
         for (SystemPermissions permission : SystemPermissions.values()) {
             permissionNames.add(permission.name());
@@ -84,7 +86,8 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         }
     }
 
-    private void initializeSystemRolesIfAbsent() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void initializeSystemRolesIfAbsent()
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> roleNames = new HashSet<>();
         Map<String, Set<String>> rolePermissionsMap = new HashMap<>();
         for (SystemRoles role : SystemRoles.values()) {
@@ -111,8 +114,9 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
             if (!existingRoles.contains(entry.getKey())) {
                 Set<PermissionModel> permissions = new HashSet<>();
                 for (String permissionName : entry.getValue()) {
-                    if (permissionsMap.containsKey(permissionName)) {
-                        permissions.add(permissionsMap.get(permissionName));
+                    PermissionModel permissionModel = permissionsMap.get(permissionName);
+                    if (permissionModel != null) {
+                        permissions.add(permissionModel);
                     }
                 }
                 newRoles.add(RoleModel.builder()
@@ -130,27 +134,87 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
     }
 
     private void addPermissionsToRoles(Map<String, Set<String>> rolePermissionsMap) {
-        rolePermissionsMap.put(ROLE_MANAGE_USERS.name(), Set.of(CAN_CREATE_USER.name(), CAN_READ_USER.name(), CAN_UPDATE_USER.name(), CAN_DELETE_USER.name()));
-        rolePermissionsMap.put(ROLE_MANAGE_ROLES.name(), Set.of(CAN_CREATE_ROLE.name(), CAN_READ_ROLE.name(), CAN_UPDATE_ROLE.name(), CAN_DELETE_ROLE.name()));
-        rolePermissionsMap.put(ROLE_MANAGE_PERMISSIONS.name(), Set.of(CAN_READ_PERMISSION.name()));
+        rolePermissionsMap.put(
+                ROLE_MANAGE_USERS.name(),
+                Set.of(
+                        CAN_CREATE_USER.name(),
+                        CAN_READ_USER.name(),
+                        CAN_UPDATE_USER.name(),
+                        CAN_DELETE_USER.name()
+                )
+        );
+        rolePermissionsMap.put(
+                ROLE_MANAGE_ROLES.name(),
+                Set.of(
+                        CAN_CREATE_ROLE.name(),
+                        CAN_READ_ROLE.name(),
+                        CAN_UPDATE_ROLE.name(),
+                        CAN_DELETE_ROLE.name()
+                )
+        );
+        rolePermissionsMap.put(
+                ROLE_MANAGE_PERMISSIONS.name(),
+                Set.of(CAN_READ_PERMISSION.name())
+        );
     }
 
-    private void initializeDefaultUsersIfAbsent() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        Set<SystemUserDto> systemUsers = Set.of(new SystemUserDto(propertiesConfig.getGodUserUsername(), propertiesConfig.getGodUserPassword(), propertiesConfig.getGodUserEmail(), "God", Set.of(ROLE_GOD.name())), new SystemUserDto(propertiesConfig.getGlobalAdminUserUsername(), propertiesConfig.getGlobalAdminUserPassword(), propertiesConfig.getGlobalAdminUserEmail(), "Global Admin", Set.of(ROLE_GLOBAL_ADMIN.name())));
+    private void initializeDefaultUsersIfAbsent()
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Set<SystemUserDto> systemUsers = Set.of(
+                new SystemUserDto(
+                        propertiesConfig.getGodUserUsername(),
+                        propertiesConfig.getGodUserPassword(),
+                        propertiesConfig.getGodUserEmail(),
+                        "God",
+                        Set.of(ROLE_GOD.name())
+                ),
+                new SystemUserDto(
+                        propertiesConfig.getGlobalAdminUserUsername(),
+                        propertiesConfig.getGlobalAdminUserPassword(),
+                        propertiesConfig.getGlobalAdminUserEmail(),
+                        "Global Admin",
+                        Set.of(ROLE_GLOBAL_ADMIN.name())
+                )
+        );
+        Set<String> encryptedUsernames = new HashSet<>();
+        Map<String, String> encryptedUsernameToUsernameMap = new HashMap<>();
+        Map<String, String> usernameToEncryptedUsernameMap = new HashMap<>();
+        Set<String> roles = new HashSet<>();
+        String tempStr;
+        for (SystemUserDto user : systemUsers) {
+            tempStr = genericAesStaticEncryptorDecryptor.encrypt(user.getUsername());
+            encryptedUsernames.add(tempStr);
+            encryptedUsernameToUsernameMap.put(tempStr, user.getUsername());
+            usernameToEncryptedUsernameMap.put(user.getUsername(), tempStr);
+            if (!user.getRoles().isEmpty()) {
+                roles.addAll(user.getRoles());
+            }
+        }
         Set<String> existingUsersUsernames = new HashSet<>();
-        for (UserModel user : userRepo.findByUsernameIn(Set.of(propertiesConfig.getGodUserUsername(), propertiesConfig.getGlobalAdminUserUsername()))) {
-            existingUsersUsernames.add(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername(), String.class));
+        for (UserModel user : userRepo.findByUsernameIn(encryptedUsernames)) {
+            existingUsersUsernames.add(encryptedUsernameToUsernameMap.get(user.getUsername()));
+        }
+        Map<String, RoleModel> roleMap = new HashMap<>();
+        for (RoleModel roleModel : roleRepo.findAllById(roles)) {
+            roleMap.put(roleModel.getRoleName(), roleModel);
         }
         Set<UserModel> newUsers = new HashSet<>();
         for (SystemUserDto user : systemUsers) {
             if (!existingUsersUsernames.contains(user.getUsername())) {
+                Set<RoleModel> userRoles = new HashSet<>();
+                for (String roleName : user.getRoles()) {
+                    RoleModel roleModel = roleMap.get(roleName);
+                    if (roleModel != null) {
+                        userRoles.add(roleModel);
+                    }
+                }
                 newUsers.add(UserModel.builder()
-                        .username(genericAesStaticEncryptorDecryptor.encrypt(user.getUsername()))
+                        .username(usernameToEncryptedUsernameMap.get(user.getUsername()))
                         .email(genericAesStaticEncryptorDecryptor.encrypt(user.getEmail()))
                         .realEmail(genericAesStaticEncryptorDecryptor.encrypt(normalizeEmail(user.getEmail())))
                         .firstName(user.getFirstName())
                         .password(passwordEncoder.encode(user.getPassword()))
-                        .roles(new HashSet<>(roleRepo.findAllById(user.getRoles())))
+                        .roles(userRoles)
                         .emailVerified(true)
                         .createdBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
                         .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
