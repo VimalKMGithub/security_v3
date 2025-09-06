@@ -18,7 +18,11 @@ public final class QrUtility {
 
     public static byte[] generateQrCode(String content)
             throws IOException, WriterException {
-        return generateQrCode(content, DEFAULT_SIZE, DEFAULT_IMAGE_FORMAT);
+        return generateQrCode(
+                content,
+                DEFAULT_SIZE,
+                DEFAULT_IMAGE_FORMAT
+        );
     }
 
     private static byte[] generateQrCode(String content,
@@ -26,7 +30,8 @@ public final class QrUtility {
                                          String format)
             throws WriterException, IOException {
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-        MatrixToImageWriter.writeToStream(QR_CODE_WRITER.encode(
+        MatrixToImageWriter.writeToStream(
+                QR_CODE_WRITER.encode(
                         content,
                         BarcodeFormat.QR_CODE,
                         size,
