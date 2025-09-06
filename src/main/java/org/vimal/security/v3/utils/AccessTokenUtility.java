@@ -62,8 +62,11 @@ public class AccessTokenUtility {
     private final ThreadLocal<JsonWebEncryption> jweDecryptor;
 
     public AccessTokenUtility(PropertiesConfig propertiesConfig, UserRepo userRepo, RedisService redisService, GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor, GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor) throws NoSuchAlgorithmException {
-        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64.decode(propertiesConfig.getAccessTokenSigningSecretKey()));
-        this.encryptionKey = new SecretKeySpec(MessageDigest.getInstance("SHA-256").digest(propertiesConfig.getAccessTokenEncryptionSecretKey().getBytes()), "AES");
+        this.signingKey = Keys.hmacShaKeyFor(Decoders.BASE64
+                .decode(propertiesConfig.getAccessTokenSigningSecretKey()));
+        this.encryptionKey = new SecretKeySpec(MessageDigest.getInstance("SHA-256")
+                .digest(propertiesConfig.getAccessTokenEncryptionSecretKey().getBytes()),
+                "AES");
         this.userRepo = userRepo;
         this.redisService = redisService;
         this.genericAesRandomEncryptorDecryptor = genericAesRandomEncryptorDecryptor;
@@ -84,13 +87,19 @@ public class AccessTokenUtility {
         });
     }
 
-    private UUID generateAccessTokenId(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UUID generateAccessTokenId(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UUID accessTokenId = UUID.randomUUID();
-        redisService.save(genericAesStaticEncryptorDecryptor.encrypt(ACCESS_TOKEN_ID_PREFIX + user.getId()), genericAesRandomEncryptorDecryptor.encrypt(accessTokenId), ACCESS_TOKEN_EXPIRES_IN_DURATION);
+        redisService.save(
+                genericAesStaticEncryptorDecryptor.encrypt(ACCESS_TOKEN_ID_PREFIX + user.getId()),
+                genericAesRandomEncryptorDecryptor.encrypt(accessTokenId),
+                ACCESS_TOKEN_EXPIRES_IN_DURATION
+        );
         return accessTokenId;
     }
 
-    private Map<String, Object> buildTokenClaims(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, Object> buildTokenClaims(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Map<String, Object> claims = new HashMap<>();
         claims.put(ACCESS_TOKEN_ID.name(), generateAccessTokenId(user));
         claims.put(USER_ID.name(), user.getId());
@@ -130,33 +139,51 @@ public class AccessTokenUtility {
         return jwe.getCompactSerialization();
     }
 
-    private UUID generateRefreshToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UUID generateRefreshToken(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedRefreshTokenKey = getEncryptedRefreshTokenKey(user);
         Object existingEncryptedRefreshToken = redisService.get(encryptedRefreshTokenKey);
         if (existingEncryptedRefreshToken != null) {
-            return genericAesRandomEncryptorDecryptor.decrypt((String) existingEncryptedRefreshToken, UUID.class);
+            return genericAesRandomEncryptorDecryptor.decrypt(
+                    (String) existingEncryptedRefreshToken,
+                    UUID.class
+            );
         }
         UUID refreshToken = UUID.randomUUID();
         String encryptedRefreshTokenMappingKey = genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_MAPPING_PREFIX + refreshToken);
         try {
-            redisService.save(encryptedRefreshTokenKey, genericAesRandomEncryptorDecryptor.encrypt(refreshToken), REFRESH_TOKEN_EXPIRES_IN_DURATION);
-            redisService.save(encryptedRefreshTokenMappingKey, genericAesRandomEncryptorDecryptor.encrypt(user.getId()), REFRESH_TOKEN_EXPIRES_IN_DURATION);
+            redisService.save(
+                    encryptedRefreshTokenKey,
+                    genericAesRandomEncryptorDecryptor.encrypt(refreshToken),
+                    REFRESH_TOKEN_EXPIRES_IN_DURATION
+            );
+            redisService.save(
+                    encryptedRefreshTokenMappingKey,
+                    genericAesRandomEncryptorDecryptor.encrypt(user.getId()),
+                    REFRESH_TOKEN_EXPIRES_IN_DURATION
+            );
             return refreshToken;
         } catch (Exception ex) {
-            redisService.deleteAll(Set.of(encryptedRefreshTokenKey, encryptedRefreshTokenMappingKey));
+            redisService.deleteAll(Set.of(
+                    encryptedRefreshTokenKey,
+                    encryptedRefreshTokenMappingKey
+            ));
             throw new RuntimeException("Failed to generate refresh token", ex);
         }
     }
 
-    private String getEncryptedRefreshTokenKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedRefreshTokenKey(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return getEncryptedRefreshTokenKey(user.getId());
     }
 
-    private String getEncryptedRefreshTokenKey(UUID userId) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedRefreshTokenKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + userId);
     }
 
-    private Map<String, Object> generateAccessToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+    private Map<String, Object> generateAccessToken(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
         Map<String, Object> accessToken = new HashMap<>();
         accessToken.put("access_token", encryptToken(signToken(buildTokenClaims(user))));
         accessToken.put("expires_in_seconds", ACCESS_TOKEN_EXPIRES_IN_SECONDS);
@@ -164,7 +191,8 @@ public class AccessTokenUtility {
         return accessToken;
     }
 
-    public Map<String, Object> generateTokens(UserModel user) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, Object> generateTokens(UserModel user)
+            throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Map<String, Object> tokens = generateAccessToken(user);
         tokens.put("refresh_token", generateRefreshToken(user));
         user.recordSuccessfulLogin();
@@ -187,57 +215,105 @@ public class AccessTokenUtility {
     }
 
     @SuppressWarnings("unchecked")
-    public UserDetailsImpl verifyAccessToken(String accessToken) throws JoseException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public UserDetailsImpl verifyAccessToken(String accessToken)
+            throws JoseException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Claims claims = parseToken(decryptToken(accessToken));
-        if (Instant.parse(claims.get(ISSUED_AT.name(), String.class)).isAfter(Instant.now())) {
+        if (Instant.parse(claims.get(
+                                ISSUED_AT.name(),
+                                String.class
+                        )
+                )
+                .isAfter(Instant.now())) {
             throw new UnauthorizedException("Invalid token");
         }
-        if (Instant.parse(claims.get(EXPIRATION.name(), String.class)).isBefore(Instant.now())) {
+        if (Instant.parse(claims.get(
+                                EXPIRATION.name(),
+                                String.class
+                        )
+                )
+                .isBefore(Instant.now())) {
             throw new UnauthorizedException("Invalid token");
         }
-        String userId = claims.get(USER_ID.name(), String.class);
+        String userId = claims.get(
+                USER_ID.name(),
+                String.class
+        );
         Object encryptedAccessTokenId = redisService.get(genericAesStaticEncryptorDecryptor.encrypt(ACCESS_TOKEN_ID_PREFIX + userId));
         if (encryptedAccessTokenId == null) {
             throw new UnauthorizedException("Invalid token");
         }
-        if (!genericAesRandomEncryptorDecryptor.decrypt((String) encryptedAccessTokenId, String.class).equals(claims.get(ACCESS_TOKEN_ID.name(), String.class))) {
+        if (!genericAesRandomEncryptorDecryptor.decrypt(
+                        (String) encryptedAccessTokenId,
+                        String.class
+                )
+                .equals(claims.get(
+                        ACCESS_TOKEN_ID.name(),
+                        String.class
+                ))
+        ) {
             throw new UnauthorizedException("Invalid token");
         }
         UserModel user = new UserModel();
         user.setId(UUID.fromString(userId));
-        user.setUsername(claims.get(USERNAME.name(), String.class));
-        user.setEmail(claims.get(EMAIL.name(), String.class));
-        user.setRealEmail(claims.get(REAL_EMAIL.name(), String.class));
-        user.setMfaEnabled(claims.get(MFA_ENABLED.name(), Boolean.class));
+        user.setUsername(claims.get(
+                USERNAME.name(),
+                String.class
+        ));
+        user.setEmail(claims.get(
+                EMAIL.name(),
+                String.class
+        ));
+        user.setRealEmail(claims.get(
+                REAL_EMAIL.name(),
+                String.class
+        ));
+        user.setMfaEnabled(claims.get(
+                MFA_ENABLED.name(),
+                Boolean.class
+        ));
         Set<MfaType> mfaMethods = new HashSet<>();
-        for (String mfaMethod : (List<String>) claims.get(MFA_METHODS.name(), List.class)) {
+        for (String mfaMethod : (List<String>) claims.get(
+                MFA_METHODS.name(),
+                List.class
+        )) {
             mfaMethods.add(MfaType.valueOf(mfaMethod));
         }
         user.setMfaMethods(mfaMethods);
         Set<SimpleGrantedAuthority> authorities = new HashSet<>();
-        for (String authority : (List<String>) claims.get(AUTHORITIES.name(), List.class)) {
+        for (String authority : (List<String>) claims.get(
+                AUTHORITIES.name(),
+                List.class
+        )) {
             authorities.add(new SimpleGrantedAuthority(authority));
         }
         return new UserDetailsImpl(user, authorities);
     }
 
-    private String getEncryptedAccessTokenIdKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedAccessTokenIdKey(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return getEncryptedAccessTokenIdKey(user.getId());
     }
 
-    private String getEncryptedAccessTokenIdKey(UUID userId) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedAccessTokenIdKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(ACCESS_TOKEN_ID_PREFIX + userId);
     }
 
-    public void revokeAccessToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public void revokeAccessToken(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         redisService.delete(getEncryptedAccessTokenIdKey(user));
     }
 
-    private String getEncryptedRefreshTokenMappingKey(String encryptedRefreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_MAPPING_PREFIX + genericAesRandomEncryptorDecryptor.decrypt(encryptedRefreshToken, UUID.class));
+    private String getEncryptedRefreshTokenMappingKey(String encryptedRefreshToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_MAPPING_PREFIX + genericAesRandomEncryptorDecryptor.decrypt(
+                encryptedRefreshToken,
+                UUID.class
+        ));
     }
 
-    public void revokeTokens(Set<UserModel> users) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public void revokeTokens(Set<UserModel> users)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<Object> encryptedKeys = new HashSet<>();
         Set<Object> encryptedRefreshTokenKeys = new HashSet<>();
         for (UserModel user : users) {
@@ -247,7 +323,9 @@ public class AccessTokenUtility {
         proceedAndRevokeTokens(encryptedKeys, encryptedRefreshTokenKeys);
     }
 
-    private void proceedAndRevokeTokens(Set<Object> encryptedKeys, Set<Object> encryptedRefreshTokenKeys) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void proceedAndRevokeTokens(Set<Object> encryptedKeys,
+                                        Set<Object> encryptedRefreshTokenKeys)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         for (Object encryptedRefreshToken : redisService.getAll(encryptedRefreshTokenKeys)) {
             if (encryptedRefreshToken != null) {
                 encryptedKeys.add(getEncryptedRefreshTokenMappingKey((String) encryptedRefreshToken));
@@ -261,7 +339,8 @@ public class AccessTokenUtility {
         }
     }
 
-    public void revokeTokensByUsersIds(Set<UUID> userIds) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public void revokeTokensByUsersIds(Set<UUID> userIds)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<Object> encryptedKeys = new HashSet<>();
         Set<Object> encryptedRefreshTokenKeys = new HashSet<>();
         for (UUID userId : userIds) {
@@ -271,24 +350,34 @@ public class AccessTokenUtility {
         proceedAndRevokeTokens(encryptedKeys, encryptedRefreshTokenKeys);
     }
 
-    public void revokeRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public void revokeRefreshToken(String refreshToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedRefreshTokenMappingKey = getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(refreshToken);
-        redisService.deleteAll(Set.of(encryptedRefreshTokenMappingKey, genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + getUserId(encryptedRefreshTokenMappingKey))));
+        redisService.deleteAll(Set.of(
+                encryptedRefreshTokenMappingKey,
+                genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + getUserId(encryptedRefreshTokenMappingKey)))
+        );
     }
 
-    private String getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(String refreshToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_MAPPING_PREFIX + refreshToken);
     }
 
-    private UUID getUserId(String encryptedRefreshTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UUID getUserId(String encryptedRefreshTokenMappingKey)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Object encryptedUserId = redisService.get(encryptedRefreshTokenMappingKey);
         if (encryptedUserId != null) {
-            return genericAesRandomEncryptorDecryptor.decrypt((String) encryptedUserId, UUID.class);
+            return genericAesRandomEncryptorDecryptor.decrypt(
+                    (String) encryptedUserId,
+                    UUID.class
+            );
         }
         throw new SimpleBadRequestException("Invalid refresh token");
     }
 
-    private UserModel verifyRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UserModel verifyRefreshToken(String refreshToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UUID userId = getUserId(getEncryptedRefreshTokenMappingKeyUnencryptedRefreshToken(refreshToken));
         Object encryptedRefreshToken = redisService.get(genericAesStaticEncryptorDecryptor.encrypt(REFRESH_TOKEN_PREFIX + userId));
         if (encryptedRefreshToken != null) {
@@ -297,7 +386,8 @@ public class AccessTokenUtility {
         throw new SimpleBadRequestException("Invalid refresh token");
     }
 
-    public Map<String, Object> refreshAccessToken(String refreshToken) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, Object> refreshAccessToken(String refreshToken)
+            throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return generateAccessToken(verifyRefreshToken(refreshToken));
     }
 }
