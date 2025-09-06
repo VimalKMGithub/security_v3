@@ -3,6 +3,7 @@ package org.vimal.security.v3.utils;
 import javax.crypto.*;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
+import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
 import java.security.MessageDigest;
@@ -16,9 +17,11 @@ public class AesStaticUtility {
     private final SecretKey secretKey;
 
     public AesStaticUtility(String aesSecret) throws NoSuchAlgorithmException {
-        this.secretKey = new SecretKeySpec(MessageDigest.getInstance("SHA-256")
-                .digest(aesSecret.getBytes()),
-                "AES");
+        this.secretKey = new SecretKeySpec(
+                MessageDigest.getInstance("SHA-256")
+                        .digest(aesSecret.getBytes()),
+                "AES"
+        );
     }
 
     public String encrypt(String data)
@@ -30,7 +33,7 @@ public class AesStaticUtility {
                 FIXED_IV_SPEC
         );
         return Base64.getEncoder()
-                .encodeToString(cipher.doFinal(data.getBytes()));
+                .encodeToString(cipher.doFinal(data.getBytes(StandardCharsets.UTF_8)));
     }
 
     public String decrypt(String encryptedData)
@@ -41,7 +44,10 @@ public class AesStaticUtility {
                 secretKey,
                 FIXED_IV_SPEC
         );
-        return new String(cipher.doFinal(Base64.getDecoder()
-                .decode(encryptedData)));
+        return new String(
+                cipher.doFinal(Base64.getDecoder()
+                        .decode(encryptedData)),
+                StandardCharsets.UTF_8
+        );
     }
 }
