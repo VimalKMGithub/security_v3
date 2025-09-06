@@ -80,7 +80,7 @@ public class MapperUtility {
                         String.class
                 )
         );
-        dto.setUpdatedBy(genericAesRandomEncryptorDecryptor.decrypt(
+        dto.setUpdatedBy(user.getUpdatedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(
                         user.getUpdatedBy(),
                         String.class
                 )
