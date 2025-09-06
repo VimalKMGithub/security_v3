@@ -881,14 +881,25 @@ public class AdminService {
                 return ResponseEntity.badRequest()
                         .body(mapOfErrors);
             }
-            if (isLenient &&
-                    !mapOfErrors.isEmpty()) {
-                return ResponseEntity.ok(Map.of(
-                        "found_users", users,
-                        "reasons_due_to_which_some_users_has_not_been_returned", mapOfErrors
-                ));
+            if (users.isEmpty()) {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No users returned",
+                            "reasons_due_to_which_users_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("message", "No users returned"));
+            } else {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "found_users", users,
+                            "reasons_due_to_which_some_users_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("found_users", users));
             }
-            return ResponseEntity.ok(Map.of("found_users", users));
         }
         throw new ServiceUnavailableException("Reading users is currently disabled. Please try again later");
     }
