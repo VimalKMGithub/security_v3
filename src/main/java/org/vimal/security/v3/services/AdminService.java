@@ -835,11 +835,9 @@ public class AdminService {
             }
             List<UserSummaryToCompanyUsersDto> users = new ArrayList<>();
             for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
-                if (!userModel.isAccountDeleted()) {
-                    validateInputsForDeleteOrReadUsersResult.getUsernames()
-                            .remove(tempMap.get(userModel.getUsername()));
-                    users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
-                }
+                validateInputsForDeleteOrReadUsersResult.getUsernames()
+                        .remove(tempMap.get(userModel.getUsername()));
+                users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
             }
             tempSet.clear();
             tempMap.clear();
@@ -849,11 +847,9 @@ public class AdminService {
                 tempMap.put(tempStr, email);
             }
             for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
-                if (!userModel.isAccountDeleted()) {
-                    validateInputsForDeleteOrReadUsersResult.getEmails()
-                            .remove(tempMap.get(userModel.getEmail()));
-                    users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
-                }
+                validateInputsForDeleteOrReadUsersResult.getEmails()
+                        .remove(tempMap.get(userModel.getEmail()));
+                users.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
             }
             if (!validateInputsForDeleteOrReadUsersResult.getUsernames()
                     .isEmpty()) {
