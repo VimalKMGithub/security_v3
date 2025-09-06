@@ -53,7 +53,8 @@ public class GlobalExceptionHandler {
             SimpleBadRequestException.class,
             HttpMessageNotReadableException.class,
             NoResourceFoundException.class,
-            MissingRequestValueException.class})
+            MissingRequestValueException.class
+    })
     public ResponseEntity<Map<String, String>> handleBadRequestExceptions(Exception ex) {
         return ResponseEntity.badRequest()
                 .body(Map.of(
