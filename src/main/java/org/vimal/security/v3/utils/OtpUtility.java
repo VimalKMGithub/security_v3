@@ -1,7 +1,5 @@
 package org.vimal.security.v3.utils;
 
-import org.vimal.security.v3.exceptions.SimpleBadRequestException;
-
 import java.security.SecureRandom;
 
 public final class OtpUtility {
@@ -18,7 +16,7 @@ public final class OtpUtility {
 
     private static String generateOtp(int length) {
         if (length < 1) {
-            throw new SimpleBadRequestException("Otp length must be at least 1");
+            throw new IllegalArgumentException("Otp length must be at least 1");
         }
         char[] otpChars = new char[length];
         for (int i = 0; i < length; i++) {
