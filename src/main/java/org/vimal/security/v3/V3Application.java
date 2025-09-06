@@ -9,7 +9,8 @@ import java.util.TimeZone;
 
 @SpringBootApplication
 @ConfigurationPropertiesScan
-@EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode.VIA_DTO)
+@EnableSpringDataWebSupport(pageSerializationMode = EnableSpringDataWebSupport.PageSerializationMode
+        .VIA_DTO)
 public class V3Application {
     public static void main(String[] args) {
         TimeZone.setDefault(TimeZone.getTimeZone("Asia/Kolkata"));
