@@ -22,8 +22,8 @@ public final class TotpUtility {
             KeyGenerator keyGen = KeyGenerator.getInstance(TOTP_GENERATOR.getAlgorithm());
             keyGen.init(160);
             return keyGen;
-        } catch (NoSuchAlgorithmException e) {
-            throw new IllegalStateException("Totp algorithm not available", e);
+        } catch (NoSuchAlgorithmException ex) {
+            throw new IllegalStateException("Totp algorithm not available", ex);
         }
     });
 
