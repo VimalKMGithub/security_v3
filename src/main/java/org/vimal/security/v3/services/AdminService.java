@@ -916,13 +916,22 @@ public class AdminService {
                     validateInputsForUsersUpdationResult,
                     mapOfErrors
             );
-            if (!isLenient &&
-                    !mapOfErrors.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(mapOfErrors);
-            }
-            if (dtos.isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users updated"));
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (dtos.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No users updated"));
+                }
+            } else if (dtos.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No users updated",
+                            "reasons_due_to_which_users_has_not_been_updated", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No users updated"));
+                }
             }
             AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getConflictingUsernamesAndEmails(validateInputsForUsersUpdationResult);
             if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
@@ -945,15 +954,26 @@ public class AdminService {
                     updaterHighestTopRole,
                     mapOfErrors
             );
-            if (!isLenient &&
-                    !mapOfErrors.isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(mapOfErrors);
-            }
-            if (!usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
+                        .isEmpty() &&
+                        usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No users updated"));
+                }
+            } else if (usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
                     .isEmpty() &&
-                    !usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
-                return ResponseEntity.ok(Map.of("message", "No users updated"));
+                    usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No users updated",
+                            "reasons_due_to_which_users_has_not_been_updated", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No users updated"));
+                }
             }
             if (!usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
                     .isEmpty()) {
