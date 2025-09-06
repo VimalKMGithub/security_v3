@@ -840,7 +840,7 @@ public class AdminService {
                             "reasons_due_to_users_has_not_been_returned", mapOfErrors
                     ));
                 }
-                return ResponseEntity.ok(Map.of("message", "No users created"));
+                return ResponseEntity.ok(Map.of("message", "No users returned"));
             }
             Set<String> tempSet = new HashSet<>();
             Map<String, String> tempMap = new HashMap<>();
