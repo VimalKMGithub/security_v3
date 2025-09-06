@@ -121,10 +121,7 @@ public class AdminService {
                         .body(mapOfErrors);
             }
             Set<UserModel> newUsers = new HashSet<>();
-            String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(
-                    creator.getUsername(),
-                    String.class
-            );
+            String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(creator.getUsername());
             for (UserCreationDto dto : dtos) {
                 if (isLenient) {
                     if (alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
@@ -553,14 +550,8 @@ public class AdminService {
                     variant,
                     usernamesOrEmails
             );
-            String decryptedDeleterUsername = genericAesStaticEncryptorDecryptor.decrypt(
-                    deleter.getUsername(),
-                    String.class
-            );
-            String decryptedDeleterEmail = genericAesStaticEncryptorDecryptor.decrypt(
-                    deleter.getUser().getEmail(),
-                    String.class
-            );
+            String decryptedDeleterUsername = genericAesStaticEncryptorDecryptor.decrypt(deleter.getUsername());
+            String decryptedDeleterEmail = genericAesStaticEncryptorDecryptor.decrypt(deleter.getUser().getEmail());
             ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(
                     usernamesOrEmails,
                     decryptedDeleterUsername,
@@ -807,15 +798,8 @@ public class AdminService {
             );
             ValidateInputsForDeleteOrReadUsersResultDto validateInputsForDeleteOrReadUsersResult = validateInputsForDeleteOrReadUsers(
                     usernamesOrEmails,
-                    genericAesStaticEncryptorDecryptor.decrypt(
-                            reader.getUsername(),
-                            String.class
-                    ),
-                    genericAesStaticEncryptorDecryptor.decrypt(
-                            reader.getUser()
-                                    .getEmail(),
-                            String.class
-                    )
+                    genericAesStaticEncryptorDecryptor.decrypt(reader.getUsername()),
+                    genericAesStaticEncryptorDecryptor.decrypt(reader.getUser().getEmail())
             );
             Map<String, Object> mapOfErrors = new HashMap<>();
             if (!validateInputsForDeleteOrReadUsersResult.getInvalidInputs()
@@ -1307,10 +1291,7 @@ public class AdminService {
         boolean isUpdated;
         boolean shouldRemoveTokens;
         boolean tempBoolean;
-        String decryptedUpdaterUsername = genericAesStaticEncryptorDecryptor.decrypt(
-                updater.getUsername(),
-                String.class
-        );
+        String decryptedUpdaterUsername = genericAesStaticEncryptorDecryptor.decrypt(updater.getUsername());
         for (UserUpdationDto dto : dtos) {
             tempStr = dto.getOldUsername();
             UserModel userToUpdate = encryptedOldUsernameToUserMap.get(validateInputsForUsersUpdationResult.getOldUsernameToEncryptedOldUsernameMap()
