@@ -40,7 +40,6 @@ import static org.vimal.security.v3.utils.EmailUtility.normalizeEmail;
 @Component
 @RequiredArgsConstructor
 public class CommandLineRunnerImpl implements CommandLineRunner {
-    private static final String SYSTEM = "SYSTEM";
     private final PropertiesConfig propertiesConfig;
     private final UserRepo userRepo;
     private final RoleRepo roleRepo;
@@ -76,8 +75,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
                 newPermissions.add(PermissionModel.builder()
                         .permissionName(name)
                         .systemPermission(true)
-                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
-                        .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
+                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt("SYSTEM"))
                         .build());
             }
         }
@@ -123,8 +121,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
                         .roleName(entry.getKey())
                         .systemRole(true)
                         .permissions(permissions)
-                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
-                        .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
+                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt("SYSTEM"))
                         .build());
             }
         }
@@ -216,8 +213,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
                         .password(passwordEncoder.encode(user.getPassword()))
                         .roles(userRoles)
                         .emailVerified(true)
-                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
-                        .updatedBy(genericAesRandomEncryptorDecryptor.encrypt(SYSTEM))
+                        .createdBy(genericAesRandomEncryptorDecryptor.encrypt("SYSTEM"))
                         .build());
             }
         }
