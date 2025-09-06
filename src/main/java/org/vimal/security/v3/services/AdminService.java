@@ -94,9 +94,8 @@ public class AdminService {
                             "message", "No users created",
                             "reasons_due_to_which_users_has_not_been_created", mapOfErrors
                     ));
-                } else {
-                    return ResponseEntity.ok(Map.of("message", "No users created"));
                 }
+                return ResponseEntity.ok(Map.of("message", "No users created"));
             }
             AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
             if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
