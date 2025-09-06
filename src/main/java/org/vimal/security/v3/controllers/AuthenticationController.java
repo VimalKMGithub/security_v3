@@ -65,7 +65,10 @@ public class AuthenticationController {
     public ResponseEntity<Object> requestToToggleMfa(@RequestParam String type,
                                                      @RequestParam String toggle)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, IOException, InvalidKeyException, WriterException {
-        return authenticationService.requestToToggleMfa(type, toggle);
+        return authenticationService.requestToToggleMfa(
+                type,
+                toggle
+        );
     }
 
     @PostMapping("/mfa/verifyTo/toggle")
@@ -73,17 +76,23 @@ public class AuthenticationController {
                                                                @RequestParam String toggle,
                                                                @RequestParam String otpTotp)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return ResponseEntity.ok(authenticationService.verifyToggleMfa(type,
-                toggle,
-                otpTotp));
+        return ResponseEntity.ok(authenticationService.verifyToggleMfa(
+                        type,
+                        toggle,
+                        otpTotp
+                )
+        );
     }
 
     @PostMapping("/mfa/requestTo/login")
     public ResponseEntity<Map<String, String>> requestToLoginMfa(@RequestParam String type,
                                                                  @RequestParam String stateToken)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return ResponseEntity.ok(authenticationService.requestToLoginMfa(type,
-                stateToken));
+        return ResponseEntity.ok(authenticationService.requestToLoginMfa(
+                        type,
+                        stateToken
+                )
+        );
     }
 
     @PostMapping("/mfa/verifyTo/login")
