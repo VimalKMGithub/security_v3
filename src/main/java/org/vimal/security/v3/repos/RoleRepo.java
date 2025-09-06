@@ -14,12 +14,20 @@ import java.util.UUID;
 public interface RoleRepo extends JpaRepository<RoleModel, String> {
     @Modifying
     @Transactional
-    @Query(value = "DELETE FROM user_roles WHERE role_name IN (:roleNames)", nativeQuery = true)
+    @Query(value = "DELETE FROM user_roles" +
+            " WHERE role_name IN (:roleNames)",
+            nativeQuery = true)
     void deleteUserRolesByRoleNames(Set<String> roleNames);
 
-    @Query(value = "SELECT COUNT(DISTINCT user_id) FROM user_roles WHERE role_name IN (:roleNames)", nativeQuery = true)
+    @Query(value = "SELECT COUNT(DISTINCT user_id)" +
+            " FROM user_roles" +
+            " WHERE role_name IN (:roleNames)",
+            nativeQuery = true)
     long countUsersByRoleNames(Set<String> roleNames);
 
-    @Query(value = "SELECT DISTINCT user_id FROM user_roles WHERE role_name IN (:roleNames)", nativeQuery = true)
+    @Query(value = "SELECT DISTINCT user_id" +
+            " FROM user_roles" +
+            " WHERE role_name IN (:roleNames)",
+            nativeQuery = true)
     Set<UUID> findUserIdsByRoleNames(Set<String> roleNames);
 }
