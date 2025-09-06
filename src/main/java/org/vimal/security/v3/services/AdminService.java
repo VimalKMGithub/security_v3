@@ -1239,7 +1239,7 @@ public class AdminService {
         boolean isUpdated;
         boolean shouldRemoveTokens;
         boolean tempBoolean;
-        String decryptedUpdaterUsername = genericAesRandomEncryptorDecryptor.decrypt(
+        String decryptedUpdaterUsername = genericAesStaticEncryptorDecryptor.decrypt(
                 updater.getUsername(),
                 String.class
         );
