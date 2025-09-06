@@ -180,6 +180,15 @@ public class UserModel {
     @Column(name = "locked_at")
     private Instant lockedAt;
 
+    public void recordLockedStatus(boolean locked) {
+        this.accountLocked = locked;
+        this.lockedAt = locked ? Instant.now() : null;
+        if (!locked) {
+            this.failedLoginAttempts = 0;
+            this.failedMfaAttempts = 0;
+        }
+    }
+
     @Builder.Default
     @Column(name = "failed_login_attempts",
             nullable = false)

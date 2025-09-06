@@ -81,10 +81,10 @@ public class AdminService {
                     creatorHighestTopRole
             );
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersCreationResult);
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest().body(mapOfErrors);
-                }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
             }
             AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getAlreadyTakenUsernamesAndEmails(validateInputsForUsersCreationResult);
             if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
@@ -95,21 +95,19 @@ public class AdminService {
                     .isEmpty()) {
                 mapOfErrors.put("already_taken_emails", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails());
             }
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest()
-                            .body(mapOfErrors);
-                }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
             }
             Map<String, RoleModel> resolvedRolesMap = resolveRoles(validateInputsForUsersCreationResult.getRoles());
             if (!validateInputsForUsersCreationResult.getRoles().isEmpty()) {
                 mapOfErrors.put("missing_roles", validateInputsForUsersCreationResult.getRoles());
             }
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest()
-                            .body(mapOfErrors);
-                }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
             }
             if (dtos.isEmpty()) {
                 return ResponseEntity.ok(Map.of("message", "No users created"));
@@ -479,12 +477,11 @@ public class AdminService {
                 deleterHighestTopRole,
                 hardDelete
         );
-        if (!isLenient) {
-            if (!validateInputsForDeleteUsersResult.getMapOfErrors()
-                    .isEmpty()) {
-                return ResponseEntity.badRequest()
-                        .body(validateInputsForDeleteUsersResult.getMapOfErrors());
-            }
+        if (!isLenient &&
+                !validateInputsForDeleteUsersResult.getMapOfErrors()
+                        .isEmpty()) {
+            return ResponseEntity.badRequest()
+                    .body(validateInputsForDeleteUsersResult.getMapOfErrors());
         }
         if (!validateInputsForDeleteUsersResult.getUsersToDelete()
                 .isEmpty()) {
@@ -781,11 +778,10 @@ public class AdminService {
                     .isEmpty()) {
                 mapOfErrors.put("invalid_inputs", validateInputsForDeleteOrReadUsersResult.getInvalidInputs());
             }
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest()
-                            .body(mapOfErrors);
-                }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
             }
             if (!validateInputsForDeleteOrReadUsersResult.getOwnUserInInputs()
                     .isEmpty()) {
@@ -839,11 +835,10 @@ public class AdminService {
                     .isEmpty()) {
                 mapOfErrors.put("users_not_found_with_emails", validateInputsForDeleteOrReadUsersResult.getEmails());
             }
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest()
-                            .body(mapOfErrors);
-                }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
             }
             if (isLenient &&
                     !mapOfErrors.isEmpty()) {
@@ -912,15 +907,61 @@ public class AdminService {
                     validateInputsForUsersUpdationResult,
                     mapOfErrors
             );
-            if (!isLenient) {
-                if (!mapOfErrors.isEmpty()) {
-                    return ResponseEntity.badRequest()
-                            .body(mapOfErrors);
-                }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
             }
             if (dtos.isEmpty()) {
                 return ResponseEntity.ok(Map.of("message", "No users updated"));
             }
+            AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult = getConflictingUsernamesAndEmails(validateInputsForUsersUpdationResult);
+            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames()
+                    .isEmpty()) {
+                mapOfErrors.put("usernames_already_taken", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenUsernames());
+            }
+            if (!alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails()
+                    .isEmpty()) {
+                mapOfErrors.put("emails_already_taken", alreadyTakenUsernamesAndEmailsResult.getAlreadyTakenEmails());
+            }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            UsersUpdationWithNewDetailsResultDto usersUpdationWithNewDetailsResult = updateUsersWithNewDetails(
+                    dtos,
+                    validateInputsForUsersUpdationResult,
+                    updater,
+                    updaterHighestTopRole,
+                    mapOfErrors
+            );
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            if (!usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
+                    .isEmpty() &&
+                    !usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No users updated"));
+            }
+            if (!usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
+                    .isEmpty()) {
+                accessTokenUtility.revokeTokensByUsersIds(usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens());
+            }
+            List<UserSummaryToCompanyUsersDto> updatedUsers = new ArrayList<>();
+            for (UserModel userModel : userRepo.saveAll(usersUpdationWithNewDetailsResult.getUpdatedUsers())) {
+                updatedUsers.add(mapperUtility.toUserSummaryToCompanyUsersDto(userModel));
+            }
+            if (isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "updated_users", updatedUsers,
+                        "reasons_due_to_which_some_users_has_not_been_updated", mapOfErrors
+                ));
+            }
+            return ResponseEntity.ok(Map.of("updated_users", updatedUsers));
         }
         throw new ServiceUnavailableException("Updating users is currently disabled. Please try again later");
     }
@@ -977,28 +1018,32 @@ public class AdminService {
         Map<String, String> oldUsernameToEncryptedOldUsernameMap = new HashMap<>();
         Set<String> duplicateOldUsernames = new HashSet<>();
         Set<String> invalidOldUsernames = new HashSet<>();
+        Map<String, String> encryptedUsernameToEncryptedOldUsernameMap = new HashMap<>();
+        Map<String, String> encryptedEmailToEncryptedOldUsernameMap = new HashMap<>();
         dtos.remove(null);
         UserUpdationDto tempDto;
         boolean removeFromDtos;
         boolean removeFromDtosSanitizeRoles;
         String tempStr;
+        String encryptedOldUsername;
         Iterator<UserUpdationDto> iterator = dtos.iterator();
         while (iterator.hasNext()) {
             removeFromDtos = false;
             removeFromDtosSanitizeRoles = false;
             tempDto = iterator.next();
+            encryptedOldUsername = null;
             try {
                 validateUsername(tempDto.getOldUsername());
                 if (oldUsernames.add(tempDto.getOldUsername())) {
-                    tempStr = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getOldUsername());
-                    encryptedOldUsernames.add(tempStr);
+                    encryptedOldUsername = genericAesStaticEncryptorDecryptor.encrypt(tempDto.getOldUsername());
+                    encryptedOldUsernames.add(encryptedOldUsername);
                     encryptedOldUsernameToOldUsernameMap.put(
-                            tempStr,
+                            encryptedOldUsername,
                             tempDto.getOldUsername()
                     );
                     oldUsernameToEncryptedOldUsernameMap.put(
                             tempDto.getOldUsername(),
-                            tempStr
+                            encryptedOldUsername
                     );
                 } else {
                     duplicateOldUsernames.add(tempDto.getOldUsername());
@@ -1022,6 +1067,12 @@ public class AdminService {
                                 tempDto.getUsername(),
                                 tempStr
                         );
+                        if (encryptedOldUsername != null) {
+                            encryptedUsernameToEncryptedOldUsernameMap.put(
+                                    tempStr,
+                                    encryptedOldUsername
+                            );
+                        }
                     } else {
                         duplicateUsernamesInDtos.add(tempDto.getUsername());
                         removeFromDtos = true;
@@ -1045,6 +1096,12 @@ public class AdminService {
                                 tempDto.getEmail(),
                                 tempStr
                         );
+                        if (encryptedOldUsername != null) {
+                            encryptedEmailToEncryptedOldUsernameMap.put(
+                                    tempStr,
+                                    encryptedOldUsername
+                            );
+                        }
                     } else {
                         duplicateEmailsInDtos.add(tempDto.getEmail());
                         removeFromDtos = true;
@@ -1112,7 +1169,9 @@ public class AdminService {
                 encryptedOldUsernameToOldUsernameMap,
                 oldUsernameToEncryptedOldUsernameMap,
                 duplicateOldUsernames,
-                invalidOldUsernames
+                invalidOldUsernames,
+                encryptedUsernameToEncryptedOldUsernameMap,
+                encryptedEmailToEncryptedOldUsernameMap
         );
     }
 
@@ -1126,5 +1185,185 @@ public class AdminService {
                 .isEmpty()) {
             mapOfErrors.put("invalid_old_usernames", validateInputsForUsersUpdationResult.getInvalidOldUsernames());
         }
+    }
+
+    private AlreadyTakenUsernamesAndEmailsResultDto getConflictingUsernamesAndEmails(ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult) {
+        Set<String> alreadyTakenUsernames = new HashSet<>();
+        Set<String> alreadyTakenEmails = new HashSet<>();
+        String requesterer;
+        for (UserModel userModel : userRepo.findByUsernameIn(validateInputsForUsersUpdationResult.getEncryptedUsernames())) {
+            requesterer = validateInputsForUsersUpdationResult.getEncryptedUsernameToEncryptedOldUsernameMap()
+                    .get(userModel.getUsername());
+            if (requesterer != null &&
+                    !userModel.getUsername()
+                            .equals(requesterer)) {
+                alreadyTakenUsernames.add(validateInputsForUsersUpdationResult.getEncryptedUsernameToUsernameMap()
+                        .get(userModel.getUsername()));
+            }
+        }
+        for (UserModel userModel : userRepo.findByEmailIn(validateInputsForUsersUpdationResult.getEncryptedEmails())) {
+            requesterer = validateInputsForUsersUpdationResult.getEncryptedEmailToEncryptedOldUsernameMap()
+                    .get(userModel.getEmail());
+            if (requesterer != null &&
+                    !userModel.getUsername()
+                            .equals(requesterer)) {
+                alreadyTakenEmails.add(validateInputsForUsersUpdationResult.getEncryptedEmailToEmailMap()
+                        .get(userModel.getEmail()));
+            }
+        }
+        return new AlreadyTakenUsernamesAndEmailsResultDto(
+                alreadyTakenUsernames,
+                alreadyTakenEmails
+        );
+    }
+
+    private UsersUpdationWithNewDetailsResultDto updateUsersWithNewDetails(Set<UserUpdationDto> dtos,
+                                                                           ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult,
+                                                                           UserDetailsImpl updater,
+                                                                           String updaterHighestTopRole,
+                                                                           Map<String, Object> mapOfErrors)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        Map<String, UserModel> encryptedOldUsernameToUserMap = new HashMap<>();
+        for (UserModel user : userRepo.findByUsernameIn(validateInputsForUsersUpdationResult.getEncryptedOldUsernames())) {
+            encryptedOldUsernameToUserMap.put(user.getUsername(), user);
+        }
+        Map<String, RoleModel> roleNameToRoleMap = resolveRoles(validateInputsForUsersUpdationResult.getRoles());
+        if (!validateInputsForUsersUpdationResult.getRoles().isEmpty()) {
+            mapOfErrors.put("missing_roles", validateInputsForUsersUpdationResult.getRoles());
+        }
+        Set<UserModel> updatedUsers = new HashSet<>();
+        Set<UUID> idsOfUsersWeHaveToRemoveTokens = new HashSet<>();
+        Set<String> restrictedRoles = new HashSet<>();
+        Set<String> notFoundUsersWithOldUsernames = new HashSet<>();
+        String tempStr;
+        boolean isUpdated;
+        boolean shouldRemoveTokens;
+        boolean tempBoolean;
+        String decryptedUpdaterUsername = genericAesRandomEncryptorDecryptor.decrypt(
+                updater.getUsername(),
+                String.class
+        );
+        for (UserUpdationDto dto : dtos) {
+            tempStr = dto.getOldUsername();
+            UserModel userToUpdate = encryptedOldUsernameToUserMap.get(validateInputsForUsersUpdationResult.getOldUsernameToEncryptedOldUsernameMap()
+                    .get(tempStr));
+            if (userToUpdate == null) {
+                notFoundUsersWithOldUsernames.add(tempStr);
+                continue;
+            }
+            if (!userToUpdate.getRoles()
+                    .isEmpty()) {
+                tempBoolean = validateRoleRestriction(
+                        userToUpdate,
+                        updaterHighestTopRole,
+                        restrictedRoles
+                );
+                if (tempBoolean) {
+                    continue;
+                }
+            }
+            isUpdated = false;
+            shouldRemoveTokens = false;
+            if (dto.getUsername() != null) {
+                tempStr = validateInputsForUsersUpdationResult.getUsernameToEncryptedUsernameMap()
+                        .get(dto.getUsername());
+                if (!tempStr.equals(dto.getUsername())) {
+                    userToUpdate.setUsername(tempStr);
+                    isUpdated = true;
+                    shouldRemoveTokens = true;
+                }
+            }
+            if (dto.getEmail() != null) {
+                tempStr = validateInputsForUsersUpdationResult.getEmailToEncryptedEmailMap()
+                        .get(dto.getEmail());
+                if (!tempStr.equals(dto.getEmail())) {
+                    userToUpdate.setEmail(tempStr);
+                    isUpdated = true;
+                    shouldRemoveTokens = true;
+                }
+            }
+            if (dto.getPassword() != null) {
+                userToUpdate.recordPasswordChange(passwordEncoder.encode(dto.getPassword()));
+                isUpdated = true;
+            }
+            if (dto.getFirstName() != null &&
+                    !dto.getFirstName()
+                            .equals(userToUpdate.getFirstName())) {
+                userToUpdate.setFirstName(dto.getFirstName());
+                isUpdated = true;
+            }
+            if (dto.getMiddleName() != null &&
+                    !dto.getMiddleName()
+                            .equals(userToUpdate.getMiddleName())) {
+                userToUpdate.setMiddleName(dto.getMiddleName());
+                isUpdated = true;
+            }
+            if (dto.getLastName() != null &&
+                    !dto.getLastName()
+                            .equals(userToUpdate.getLastName())) {
+                userToUpdate.setLastName(dto.getLastName());
+                isUpdated = true;
+            }
+            if (dto.getRoles() != null) {
+                if (dto.getRoles()
+                        .isEmpty()) {
+                    userToUpdate.getRoles()
+                            .clear();
+                    isUpdated = true;
+                    shouldRemoveTokens = true;
+                } else {
+                    Set<RoleModel> rolesToAssign = new HashSet<>();
+                    for (String roleName : dto.getRoles()) {
+                        RoleModel role = roleNameToRoleMap.get(roleName);
+                        if (role != null) {
+                            rolesToAssign.add(role);
+                        }
+                    }
+                    if (!userToUpdate.getRoles()
+                            .equals(rolesToAssign)) {
+                        userToUpdate.setRoles(rolesToAssign);
+                        isUpdated = true;
+                        shouldRemoveTokens = true;
+                    }
+                }
+            }
+            if (dto.isEmailVerified() != userToUpdate.isEmailVerified()) {
+                userToUpdate.setEmailVerified(dto.isEmailVerified());
+                isUpdated = true;
+                shouldRemoveTokens = true;
+            }
+            if (dto.isAccountEnabled() != userToUpdate.isAccountEnabled()) {
+                userToUpdate.setAccountEnabled(dto.isAccountEnabled());
+                isUpdated = true;
+                shouldRemoveTokens = true;
+            }
+            if (dto.isAccountLocked() != userToUpdate.isAccountLocked()) {
+                userToUpdate.recordLockedStatus(dto.isAccountLocked());
+                isUpdated = true;
+                shouldRemoveTokens = true;
+            }
+            if (dto.isAccountDeleted() != userToUpdate.isAccountDeleted()) {
+                userToUpdate.recordAccountDeletionStatus(
+                        dto.isAccountDeleted(),
+                        genericAesRandomEncryptorDecryptor.encrypt(decryptedUpdaterUsername)
+                );
+                isUpdated = true;
+                shouldRemoveTokens = true;
+            }
+            if (isUpdated) {
+                userToUpdate.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt(decryptedUpdaterUsername));
+                updatedUsers.add(userToUpdate);
+                if (shouldRemoveTokens) {
+                    idsOfUsersWeHaveToRemoveTokens.add(userToUpdate.getId());
+                }
+            }
+        }
+        if (!notFoundUsersWithOldUsernames.isEmpty()) {
+            mapOfErrors.put("users_not_found_with_old_usernames", notFoundUsersWithOldUsernames);
+        }
+        return new UsersUpdationWithNewDetailsResultDto(
+                updatedUsers,
+                idsOfUsersWeHaveToRemoveTokens
+        );
     }
 }

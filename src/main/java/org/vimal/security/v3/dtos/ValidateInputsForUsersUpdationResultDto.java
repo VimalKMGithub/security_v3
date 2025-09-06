@@ -16,6 +16,8 @@ public class ValidateInputsForUsersUpdationResultDto extends ValidateInputsForUs
     private Map<String, String> oldUsernameToEncryptedOldUsernameMap;
     private Set<String> duplicateOldUsernames;
     private Set<String> invalidOldUsernames;
+    private Map<String, String> encryptedUsernameToEncryptedOldUsernameMap;
+    private Map<String, String> encryptedEmailToEncryptedOldUsernameMap;
 
     public ValidateInputsForUsersUpdationResultDto(Set<String> invalidInputs,
                                                    Set<String> encryptedUsernames,
@@ -32,7 +34,9 @@ public class ValidateInputsForUsersUpdationResultDto extends ValidateInputsForUs
                                                    Map<String, String> encryptedOldUsernameToOldUsernameMap,
                                                    Map<String, String> oldUsernameToEncryptedOldUsernameMap,
                                                    Set<String> duplicateOldUsernames,
-                                                   Set<String> invalidOldUsernames) {
+                                                   Set<String> invalidOldUsernames,
+                                                   Map<String, String> encryptedUsernameToEncryptedOldUsernameMap,
+                                                   Map<String, String> encryptedEmailToEncryptedOldUsernameMap) {
         super(
                 invalidInputs,
                 encryptedUsernames,
@@ -51,5 +55,7 @@ public class ValidateInputsForUsersUpdationResultDto extends ValidateInputsForUs
         this.oldUsernameToEncryptedOldUsernameMap = oldUsernameToEncryptedOldUsernameMap;
         this.duplicateOldUsernames = duplicateOldUsernames;
         this.invalidOldUsernames = invalidOldUsernames;
+        this.encryptedUsernameToEncryptedOldUsernameMap = encryptedUsernameToEncryptedOldUsernameMap;
+        this.encryptedEmailToEncryptedOldUsernameMap = encryptedEmailToEncryptedOldUsernameMap;
     }
 }
