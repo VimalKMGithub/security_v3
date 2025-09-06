@@ -124,17 +124,14 @@ public class UserService {
                 .build();
     }
 
-    private UUID generateEmailVerificationToken(UserModel user)
+    private String generateEmailVerificationToken(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedEmailVerificationTokenKey = getEncryptedEmailVerificationTokenKey(user);
-        Object existingEncryptedEmailVerificationToken = redisService.get(encryptedEmailVerificationTokenKey);
+        String existingEncryptedEmailVerificationToken = redisService.get(encryptedEmailVerificationTokenKey);
         if (existingEncryptedEmailVerificationToken != null) {
-            return genericAesRandomEncryptorDecryptor.decrypt(
-                    (String) existingEncryptedEmailVerificationToken,
-                    UUID.class
-            );
+            return genericAesRandomEncryptorDecryptor.decrypt(existingEncryptedEmailVerificationToken);
         }
-        UUID emailVerificationToken = UUID.randomUUID();
+        String emailVerificationToken = UUID.randomUUID().toString();
         String encryptedEmailVerificationTokenMappingKey = genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_MAPPING_PREFIX + emailVerificationToken);
         try {
             redisService.save(
@@ -143,7 +140,7 @@ public class UserService {
             );
             redisService.save(
                     encryptedEmailVerificationTokenMappingKey,
-                    genericAesRandomEncryptorDecryptor.encrypt(user.getId())
+                    genericAesRandomEncryptorDecryptor.encrypt(user.getId().toString())
             );
             return emailVerificationToken;
         } catch (Exception ex) {
@@ -158,7 +155,17 @@ public class UserService {
 
     private String getEncryptedEmailVerificationTokenKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_PREFIX + user.getId());
+        return getEncryptedEmailVerificationTokenKey(user.getId());
+    }
+
+    private String getEncryptedEmailVerificationTokenKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedEmailVerificationTokenKey(userId.toString());
+    }
+
+    private String getEncryptedEmailVerificationTokenKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_PREFIX + userId);
     }
 
     public UserSummaryDto getSelfDetails()
@@ -178,7 +185,7 @@ public class UserService {
             throw new SimpleBadRequestException("Invalid email verification token");
         }
         String encryptedEmailVerificationTokenMappingKey = getEncryptedEmailVerificationTokenMappingKey(emailVerificationToken);
-        UserModel user = userRepo.findById(getUserIdFromEncryptedEmailVerificationTokenMappingKey(encryptedEmailVerificationTokenMappingKey))
+        UserModel user = userRepo.findById(UUID.fromString(getUserIdFromEncryptedEmailVerificationTokenMappingKey(encryptedEmailVerificationTokenMappingKey)))
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid email verification token"));
         if (user.isEmailVerified()) {
             throw new SimpleBadRequestException("Email is already verified");
@@ -200,14 +207,11 @@ public class UserService {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_MAPPING_PREFIX + emailVerificationToken);
     }
 
-    private UUID getUserIdFromEncryptedEmailVerificationTokenMappingKey(String encryptedEmailVerificationTokenMappingKey)
+    private String getUserIdFromEncryptedEmailVerificationTokenMappingKey(String encryptedEmailVerificationTokenMappingKey)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        Object encryptedUserId = redisService.get(encryptedEmailVerificationTokenMappingKey);
+        String encryptedUserId = redisService.get(encryptedEmailVerificationTokenMappingKey);
         if (encryptedUserId != null) {
-            return genericAesRandomEncryptorDecryptor.decrypt(
-                    (String) encryptedUserId,
-                    UUID.class
-            );
+            return genericAesRandomEncryptorDecryptor.decrypt(encryptedUserId);
         }
         throw new SimpleBadRequestException("Invalid email verification token");
     }
@@ -225,10 +229,8 @@ public class UserService {
         if (user.isEmailVerified()) {
             throw new SimpleBadRequestException("Email is already verified");
         }
-        mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(
-                        user.getEmail(),
-                        String.class
-                ),
+        mailService.sendEmailAsync(
+                genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                 "Resending email verification link after registration",
                 "https://godLevelSecurity.com/verifyEmailAfterRegistration?token=" + generateEmailVerificationToken(user),
                 LINK
@@ -295,10 +297,7 @@ public class UserService {
         switch (methodType) {
             case EMAIL_MFA -> {
                 mailService.sendEmailAsync(
-                        genericAesStaticEncryptorDecryptor.decrypt(
-                                user.getEmail(),
-                                String.class
-                        ),
+                        genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                         "Otp for resetting password",
                         generateOtpForForgotPassword(user),
                         OTP
@@ -324,7 +323,17 @@ public class UserService {
 
     private String getEncryptedForgotPasswordOtpKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(FORGOT_PASSWORD_OTP_PREFIX + user.getId());
+        return getEncryptedForgotPasswordOtpKey(user.getId());
+    }
+
+    private String getEncryptedForgotPasswordOtpKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedForgotPasswordOtpKey(userId.toString());
+    }
+
+    private String getEncryptedForgotPasswordOtpKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(FORGOT_PASSWORD_OTP_PREFIX + userId);
     }
 
     public ResponseEntity<Map<String, Object>> resetPassword(ResetPwdDto dto)
@@ -365,12 +374,9 @@ public class UserService {
                                                               ResetPwdDto dto)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedForgotPasswordOtpKey = getEncryptedForgotPasswordOtpKey(user);
-        Object encryptedOtp = redisService.get(encryptedForgotPasswordOtpKey);
+        String encryptedOtp = redisService.get(encryptedForgotPasswordOtpKey);
         if (encryptedOtp != null) {
-            if (genericAesRandomEncryptorDecryptor.decrypt(
-                            (String) encryptedOtp,
-                            String.class
-                    )
+            if (genericAesRandomEncryptorDecryptor.decrypt(encryptedOtp)
                     .equals(dto.getOtpTotp())
             ) {
                 try {
@@ -401,10 +407,7 @@ public class UserService {
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_PASSWORD_RESET.name())) {
             mailService.sendEmailAsync(
-                    genericAesStaticEncryptorDecryptor.decrypt(
-                            user.getEmail(),
-                            String.class
-                    ),
+                    genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                     "Password reset confirmation",
                     "",
                     PASSWORD_RESET_CONFIRMATION
@@ -415,10 +418,7 @@ public class UserService {
     private Map<String, Object> verifyAuthenticatorAppTotpToResetPassword(UserModel user,
                                                                           ResetPwdDto dto)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getAuthAppSecret(),
-                        String.class
-                ),
+        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret()),
                 dto.getOtpTotp()
         )) {
             throw new SimpleBadRequestException("Invalid Totp");
@@ -478,10 +478,7 @@ public class UserService {
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_PASSWORD_CHANGE.name())) {
             mailService.sendEmailAsync(
-                    genericAesStaticEncryptorDecryptor.decrypt(
-                            user.getEmail(),
-                            String.class
-                    ),
+                    genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                     "Password change confirmation",
                     "",
                     SELF_PASSWORD_CHANGE_CONFIRMATION
@@ -526,10 +523,7 @@ public class UserService {
     private Map<String, String> sendEmailOtpToChangePassword(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         mailService.sendEmailAsync(
-                genericAesStaticEncryptorDecryptor.decrypt(
-                        user.getEmail(),
-                        String.class
-                ),
+                genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                 "Otp for password change",
                 generateOtpForPasswordChange(user),
                 OTP
@@ -549,7 +543,17 @@ public class UserService {
 
     private String getEncryptedPasswordChangeOtpKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_FOR_PASSWORD_CHANGE_PREFIX + user.getId());
+        return getEncryptedPasswordChangeOtpKey(user.getId());
+    }
+
+    private String getEncryptedPasswordChangeOtpKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedPasswordChangeOtpKey(userId.toString());
+    }
+
+    private String getEncryptedPasswordChangeOtpKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_FOR_PASSWORD_CHANGE_PREFIX + userId);
     }
 
     public ResponseEntity<Map<String, Object>> verifyChangePassword(ChangePwdDto dto)
@@ -616,12 +620,9 @@ public class UserService {
                                                                ChangePwdDto dto)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedPasswordChangeOtpKey = getEncryptedPasswordChangeOtpKey(user);
-        Object encryptedOtp = redisService.get(encryptedPasswordChangeOtpKey);
+        String encryptedOtp = redisService.get(encryptedPasswordChangeOtpKey);
         if (encryptedOtp != null) {
-            if (genericAesRandomEncryptorDecryptor.decrypt(
-                            (String) encryptedOtp,
-                            String.class
-                    )
+            if (genericAesRandomEncryptorDecryptor.decrypt(encryptedOtp)
                     .equals(dto.getOtpTotp())
             ) {
                 try {
@@ -648,9 +649,7 @@ public class UserService {
         user = userRepo.findById(user.getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
         if (!verifyTotp(
-                genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getAuthAppSecret(), String.class
-                ),
+                genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret()),
                 dto.getOtpTotp()
         )) {
             throw new SimpleBadRequestException("Invalid Totp");
@@ -691,10 +690,7 @@ public class UserService {
                     OTP
             );
             mailService.sendEmailAsync(
-                    genericAesStaticEncryptorDecryptor.decrypt(
-                            user.getEmail(),
-                            String.class
-                    ),
+                    genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                     "Otp for email change in old email",
                     generateOtpForEmailChangeForOldEmail(user),
                     OTP
@@ -715,7 +711,17 @@ public class UserService {
 
     private String getEncryptedNewEmailKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_STORE_PREFIX + user.getId());
+        return getEncryptedNewEmailKey(user.getId());
+    }
+
+    private String getEncryptedNewEmailKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedNewEmailKey(userId.toString());
+    }
+
+    private String getEncryptedNewEmailKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_STORE_PREFIX + userId);
     }
 
     private String generateOtpForEmailChangeForNewEmail(UserModel user)
@@ -730,7 +736,17 @@ public class UserService {
 
     private String getEncryptedNewEmailChangeOtpKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_NEW_EMAIL_PREFIX + user.getId());
+        return getEncryptedNewEmailChangeOtpKey(user.getId());
+    }
+
+    private String getEncryptedNewEmailChangeOtpKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedNewEmailChangeOtpKey(userId.toString());
+    }
+
+    private String getEncryptedNewEmailChangeOtpKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_NEW_EMAIL_PREFIX + userId);
     }
 
     private String generateOtpForEmailChangeForOldEmail(UserModel user)
@@ -745,7 +761,17 @@ public class UserService {
 
     private String getEncryptedOldEmailChangeOtpKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_OLD_EMAIL_PREFIX + user.getId());
+        return getEncryptedOldEmailChangeOtpKey(user.getId());
+    }
+
+    private String getEncryptedOldEmailChangeOtpKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedOldEmailChangeOtpKey(userId.toString());
+    }
+
+    private String getEncryptedOldEmailChangeOtpKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_OLD_EMAIL_PREFIX + userId);
     }
 
     public Map<String, Object> verifyEmailChange(String newEmailOtp,
@@ -772,38 +798,29 @@ public class UserService {
             }
             UserModel user = getCurrentAuthenticatedUser();
             String encryptedNewEmailChangeOtpKey = getEncryptedNewEmailChangeOtpKey(user);
-            Object encryptedNewEmailOtp = redisService.get(encryptedNewEmailChangeOtpKey);
+            String encryptedNewEmailOtp = redisService.get(encryptedNewEmailChangeOtpKey);
             if (encryptedNewEmailOtp == null) {
                 throw new SimpleBadRequestException("Invalid Otp's");
             }
-            if (!genericAesRandomEncryptorDecryptor.decrypt(
-                            (String) encryptedNewEmailOtp,
-                            String.class
-                    )
+            if (!genericAesRandomEncryptorDecryptor.decrypt(encryptedNewEmailOtp)
                     .equals(newEmailOtp)) {
                 throw new SimpleBadRequestException("Invalid Otp's");
             }
             String encryptedOldEmailChangeOtpKey = getEncryptedOldEmailChangeOtpKey(user);
-            Object encryptedOldEmailOtp = redisService.get(encryptedOldEmailChangeOtpKey);
+            String encryptedOldEmailOtp = redisService.get(encryptedOldEmailChangeOtpKey);
             if (encryptedOldEmailOtp == null) {
                 throw new SimpleBadRequestException("Invalid Otp's");
             }
-            if (!genericAesRandomEncryptorDecryptor.decrypt(
-                            (String) encryptedOldEmailOtp,
-                            String.class
-                    )
+            if (!genericAesRandomEncryptorDecryptor.decrypt(encryptedOldEmailOtp)
                     .equals(oldEmailOtp)) {
                 throw new SimpleBadRequestException("Invalid Otp's");
             }
             String encryptedNewEmailKey = getEncryptedNewEmailKey(user);
-            Object encryptedStoredNewEmail = redisService.get(encryptedNewEmailKey);
+            String encryptedStoredNewEmail = redisService.get(encryptedNewEmailKey);
             if (encryptedStoredNewEmail == null) {
                 throw new SimpleBadRequestException("Invalid Otp's");
             }
-            String newEmail = genericAesRandomEncryptorDecryptor.decrypt(
-                    (String) encryptedStoredNewEmail,
-                    String.class
-            );
+            String newEmail = genericAesRandomEncryptorDecryptor.decrypt(encryptedStoredNewEmail);
             String encryptedNewEmail = genericAesStaticEncryptorDecryptor.encrypt(newEmail);
             if (user.getEmail()
                     .equals(encryptedNewEmail)) {
@@ -827,10 +844,7 @@ public class UserService {
             )) {
                 throw new SimpleBadRequestException("Invalid password");
             }
-            String oldEmail = genericAesStaticEncryptorDecryptor.decrypt(
-                    user.getEmail(),
-                    String.class
-            );
+            String oldEmail = genericAesStaticEncryptorDecryptor.decrypt(user.getEmail());
             user.setEmail(encryptedNewEmail);
             user.setRealEmail(encryptedNormalizedNewEmail);
             accessTokenUtility.revokeTokens(Set.of(user));
@@ -906,10 +920,7 @@ public class UserService {
         userRepo.save(user);
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_ACCOUNT_DELETION.name())) {
             mailService.sendEmailAsync(
-                    genericAesStaticEncryptorDecryptor.decrypt(
-                            user.getEmail(),
-                            String.class
-                    ),
+                    genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                     "Account deletion confirmation",
                     "",
                     ACCOUNT_DELETION_CONFIRMATION
@@ -957,10 +968,7 @@ public class UserService {
     private Map<String, String> sendEmailOtpToDeleteAccount(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         mailService.sendEmailAsync(
-                genericAesStaticEncryptorDecryptor.decrypt(
-                        user.getEmail(),
-                        String.class
-                ),
+                genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                 "Otp for account deletion",
                 generateEmailOtpForAccountDeletion(user),
                 OTP
@@ -980,7 +988,17 @@ public class UserService {
 
     private String getEncryptedEmailOtpToDeleteAccountKey(UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_TO_DELETE_ACCOUNT_PREFIX + user.getId());
+        return getEncryptedEmailOtpToDeleteAccountKey(user.getId());
+    }
+
+    private String getEncryptedEmailOtpToDeleteAccountKey(UUID userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return getEncryptedEmailOtpToDeleteAccountKey(userId.toString());
+    }
+
+    private String getEncryptedEmailOtpToDeleteAccountKey(String userId)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_TO_DELETE_ACCOUNT_PREFIX + userId);
     }
 
     public Map<String, String> verifyDeleteAccount(String otpTotp,
@@ -1042,12 +1060,9 @@ public class UserService {
                                                               UserModel user)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedEmailOtpToDeleteAccountKey = getEncryptedEmailOtpToDeleteAccountKey(user);
-        Object encryptedOtp = redisService.get(encryptedEmailOtpToDeleteAccountKey);
+        String encryptedOtp = redisService.get(encryptedEmailOtpToDeleteAccountKey);
         if (encryptedOtp != null) {
-            if (genericAesRandomEncryptorDecryptor.decrypt(
-                            (String) encryptedOtp,
-                            String.class
-                    )
+            if (genericAesRandomEncryptorDecryptor.decrypt(encryptedOtp)
                     .equals(otp)
             ) {
                 try {
@@ -1070,10 +1085,7 @@ public class UserService {
         user = userRepo.findById(user.getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
         if (!verifyTotp(
-                genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getAuthAppSecret(),
-                        String.class
-                ),
+                genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret()),
                 totp
         )) {
             throw new SimpleBadRequestException("Invalid Totp");
@@ -1096,10 +1108,7 @@ public class UserService {
             user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
             if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_UPDATE_DETAILS.name())) {
                 mailService.sendEmailAsync(
-                        genericAesStaticEncryptorDecryptor.decrypt(
-                                user.getEmail(),
-                                String.class
-                        ),
+                        genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                         "Account details updated confirmation",
                         "",
                         SELF_UPDATE_DETAILS_CONFIRMATION
@@ -1173,11 +1182,7 @@ public class UserService {
         }
         if (dto.getUsername() != null &&
                 !dto.getUsername()
-                        .equals(genericAesStaticEncryptorDecryptor.decrypt(
-                                        user.getUsername(),
-                                        String.class
-                                )
-                        )
+                        .equals(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername()))
         ) {
             try {
                 validateUsername(dto.getUsername());
