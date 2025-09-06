@@ -39,24 +39,12 @@ public class MapperUtility {
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         UserSummaryToCompanyUsersDto dto = new UserSummaryToCompanyUsersDto();
         mapCommonFields(user, dto);
-        dto.setRealEmail(genericAesStaticEncryptorDecryptor.decrypt(
-                        user.getEmail(),
-                        String.class
-                )
-        );
+        dto.setRealEmail(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()));
         dto.setAccountDeleted(user.isAccountDeleted());
         dto.setAccountDeletedAt(user.getAccountDeletedAt());
-        dto.setAccountDeletedBy(user.getAccountDeletedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getAccountDeletedBy(),
-                        String.class
-                )
-        );
+        dto.setAccountDeletedBy(user.getAccountDeletedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(user.getAccountDeletedBy()));
         dto.setAccountRecoveredAt(user.getAccountRecoveredAt());
-        dto.setAccountRecoveredBy(user.getAccountRecoveredBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getAccountRecoveredBy(),
-                        String.class
-                )
-        );
+        dto.setAccountRecoveredBy(user.getAccountRecoveredBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(user.getAccountRecoveredBy()));
         return dto;
     }
 
@@ -65,26 +53,10 @@ public class MapperUtility {
         dto.setFirstName(user.getFirstName());
         dto.setMiddleName(user.getMiddleName());
         dto.setLastName(user.getLastName());
-        dto.setUsername(genericAesStaticEncryptorDecryptor.decrypt(
-                        user.getUsername(),
-                        String.class
-                )
-        );
-        dto.setEmail(genericAesStaticEncryptorDecryptor.decrypt(
-                        user.getEmail(),
-                        String.class
-                )
-        );
-        dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getCreatedBy(),
-                        String.class
-                )
-        );
-        dto.setUpdatedBy(user.getUpdatedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(
-                        user.getUpdatedBy(),
-                        String.class
-                )
-        );
+        dto.setUsername(genericAesStaticEncryptorDecryptor.decrypt(user.getUsername()));
+        dto.setEmail(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()));
+        dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(user.getCreatedBy()));
+        dto.setUpdatedBy(user.getUpdatedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(user.getUpdatedBy()));
         Set<String> roles = new HashSet<>();
         if (user.getRoles() != null) {
             for (RoleModel role : user.getRoles()) {
@@ -116,16 +88,8 @@ public class MapperUtility {
         RoleSummaryDto dto = new RoleSummaryDto();
         dto.setRoleName(role.getRoleName());
         dto.setDescription(role.getDescription());
-        dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(
-                        role.getCreatedBy(),
-                        String.class
-                )
-        );
-        dto.setUpdatedBy(genericAesRandomEncryptorDecryptor.decrypt(
-                        role.getUpdatedBy(),
-                        String.class
-                )
-        );
+        dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(role.getCreatedBy()));
+        dto.setUpdatedBy(genericAesRandomEncryptorDecryptor.decrypt(role.getUpdatedBy()));
         Set<String> permissions = new HashSet<>();
         for (PermissionModel permission : role.getPermissions()) {
             permissions.add(permission.getPermissionName());
