@@ -23,7 +23,8 @@ public class UserDetailsImpl implements UserDetails {
         this.authorities = extractAuthorities(user);
     }
 
-    public UserDetailsImpl(UserModel user, Set<? extends GrantedAuthority> authorities) {
+    public UserDetailsImpl(UserModel user,
+                           Set<? extends GrantedAuthority> authorities) {
         this.user = user;
         this.authorities = authorities;
     }
@@ -56,17 +57,33 @@ public class UserDetailsImpl implements UserDetails {
 
     @Override
     public boolean isAccountNonExpired() {
-        return user.getCreatedAt().plus(36500, ChronoUnit.DAYS).isAfter(Instant.now());
+        return user.getCreatedAt()
+                .plus(
+                        36500,
+                        ChronoUnit.DAYS
+                )
+                .isAfter(Instant.now());
     }
 
     @Override
     public boolean isAccountNonLocked() {
-        return !user.isAccountLocked() || user.getLockedAt().plus(1, ChronoUnit.DAYS).isBefore(Instant.now());
+        return !user.isAccountLocked() ||
+                user.getLockedAt()
+                        .plus(
+                                1,
+                                ChronoUnit.DAYS
+                        )
+                        .isBefore(Instant.now());
     }
 
     @Override
     public boolean isCredentialsNonExpired() {
-        return user.getPasswordChangedAt().plus(365, ChronoUnit.DAYS).isAfter(Instant.now());
+        return user.getPasswordChangedAt()
+                .plus(
+                        365,
+                        ChronoUnit.DAYS
+                )
+                .isAfter(Instant.now());
     }
 
     @Override
