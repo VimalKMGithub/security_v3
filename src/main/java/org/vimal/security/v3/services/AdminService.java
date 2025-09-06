@@ -668,8 +668,10 @@ public class AdminService {
         Set<UserModel> usersToDelete = new HashSet<>();
         Set<String> restrictedRoles = new HashSet<>();
         for (UserModel userModel : userRepo.findByUsernameIn(tempSet)) {
-            validateInputsForDeleteOrReadUsersResult.getUsernames()
-                    .remove(tempMap.get(userModel.getUsername()));
+            if (!hardDelete) {
+                validateInputsForDeleteOrReadUsersResult.getUsernames()
+                        .remove(tempMap.get(userModel.getUsername()));
+            }
             userDeletionResult(
                     userModel,
                     deleterUsername,
@@ -687,8 +689,10 @@ public class AdminService {
             tempMap.put(tempStr, email);
         }
         for (UserModel userModel : userRepo.findByEmailIn(tempSet)) {
-            validateInputsForDeleteOrReadUsersResult.getEmails()
-                    .remove(tempMap.get(userModel.getEmail()));
+            if (!hardDelete) {
+                validateInputsForDeleteOrReadUsersResult.getEmails()
+                        .remove(tempMap.get(userModel.getEmail()));
+            }
             userDeletionResult(
                     userModel,
                     deleterUsername,
