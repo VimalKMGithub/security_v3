@@ -967,6 +967,7 @@ public class AdminService {
             } else if (usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
                     .isEmpty() &&
                     usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
+                mapOfErrors.remove("missing_roles");
                 if (!mapOfErrors.isEmpty()) {
                     return ResponseEntity.ok(Map.of(
                             "message", "No users updated",
