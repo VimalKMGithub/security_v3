@@ -67,20 +67,27 @@ public class AuthenticationService {
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
-    public Map<String, Object> login(String usernameOrEmail, String password) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, Object> login(String usernameOrEmail,
+                                     String password)
+            throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         try {
-            validateStringIsNonNullAndNotBlank(usernameOrEmail, "Username/email");
+            validateStringIsNonNullAndNotBlank(
+                    usernameOrEmail,
+                    "Username/email"
+            );
             validatePassword(password);
         } catch (SimpleBadRequestException ex) {
             throw new BadCredentialsException("Invalid credentials");
         }
         UserModel user;
-        if (EMAIL_PATTERN.matcher(usernameOrEmail).matches()) {
+        if (EMAIL_PATTERN.matcher(usernameOrEmail)
+                .matches()) {
             user = userRepo.findByEmail(genericAesStaticEncryptorDecryptor.encrypt(usernameOrEmail));
             if (user == null) {
                 throw new BadCredentialsException("Invalid credentials");
             }
-        } else if (USERNAME_PATTERN.matcher(usernameOrEmail).matches()) {
+        } else if (USERNAME_PATTERN.matcher(usernameOrEmail)
+                .matches()) {
             user = userRepo.findByUsername(genericAesStaticEncryptorDecryptor.encrypt(usernameOrEmail));
             if (user == null) {
                 throw new BadCredentialsException("Invalid credentials");
@@ -88,12 +95,21 @@ public class AuthenticationService {
         } else {
             throw new BadCredentialsException("Invalid credentials");
         }
-        return proceedLogin(user, password);
+        return proceedLogin(
+                user,
+                password
+        );
     }
 
-    private Map<String, Object> proceedLogin(UserModel user, String password) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, Object> proceedLogin(UserModel user,
+                                             String password)
+            throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         try {
-            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(user.getUsername(), password));
+            authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(
+                            user.getUsername(),
+                            password
+                    )
+            );
             return handleSuccessfulLogin(user);
         } catch (BadCredentialsException ex) {
             if (ex.getCause() instanceof UsernameNotFoundException) {
@@ -104,7 +120,8 @@ public class AuthenticationService {
         }
     }
 
-    private Map<String, Object> handleSuccessfulLogin(UserModel user) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, Object> handleSuccessfulLogin(UserModel user)
+            throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(MFA.name())) {
             if (unleashUtility.shouldDoMfa(user)) {
                 return Map.of(
@@ -124,25 +141,40 @@ public class AuthenticationService {
         return accessTokenUtility.generateTokens(user);
     }
 
-    private UUID generateStateToken(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UUID generateStateToken(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String encryptedStateTokenKey = getEncryptedStateTokenKey(user);
         Object existingEncryptedStateToken = redisService.get(encryptedStateTokenKey);
         if (existingEncryptedStateToken != null) {
-            return genericAesRandomEncryptorDecryptor.decrypt((String) existingEncryptedStateToken, UUID.class);
+            return genericAesRandomEncryptorDecryptor.decrypt(
+                    (String) existingEncryptedStateToken,
+                    UUID.class
+            );
         }
         UUID stateToken = UUID.randomUUID();
         String encryptedStateTokenMappingKey = genericAesStaticEncryptorDecryptor.encrypt(STATE_TOKEN_MAPPING_PREFIX + stateToken);
         try {
-            redisService.save(encryptedStateTokenKey, genericAesRandomEncryptorDecryptor.encrypt(stateToken));
-            redisService.save(encryptedStateTokenMappingKey, genericAesRandomEncryptorDecryptor.encrypt(user.getId()));
+            redisService.save(
+                    encryptedStateTokenKey,
+                    genericAesRandomEncryptorDecryptor.encrypt(stateToken)
+            );
+            redisService.save(
+                    encryptedStateTokenMappingKey,
+                    genericAesRandomEncryptorDecryptor.encrypt(user.getId())
+            );
             return stateToken;
         } catch (Exception ex) {
-            redisService.deleteAll(Set.of(encryptedStateTokenKey, encryptedStateTokenMappingKey));
+            redisService.deleteAll(Set.of(
+                            encryptedStateTokenKey,
+                            encryptedStateTokenMappingKey
+                    )
+            );
             throw new RuntimeException("Failed to generate state token", ex);
         }
     }
 
-    private String getEncryptedStateTokenKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedStateTokenKey(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(STATE_TOKEN_PREFIX + user.getId());
     }
 
@@ -151,28 +183,38 @@ public class AuthenticationService {
         userRepo.save(user);
     }
 
-    public Map<String, String> logout() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> logout()
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         accessTokenUtility.revokeTokens(Set.of(getCurrentAuthenticatedUser()));
         return Map.of("message", "Logout successful");
     }
 
-    public Map<String, Object> refreshAccessToken(String refreshToken) throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, Object> refreshAccessToken(String refreshToken)
+            throws InvalidAlgorithmParameterException, JoseException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         try {
-            validateUuid(refreshToken, "Refresh token");
+            validateUuid(
+                    refreshToken,
+                    "Refresh token"
+            );
         } catch (SimpleBadRequestException ex) {
             throw new SimpleBadRequestException("Invalid refresh token");
         }
         return accessTokenUtility.refreshAccessToken(refreshToken);
     }
 
-    public Map<String, String> revokeAccessToken() throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> revokeAccessToken()
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         accessTokenUtility.revokeAccessToken(getCurrentAuthenticatedUser());
         return Map.of("message", "Access token revoked successfully");
     }
 
-    public Map<String, String> revokeRefreshToken(String refreshToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> revokeRefreshToken(String refreshToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         try {
-            validateUuid(refreshToken, "Refresh token");
+            validateUuid(
+                    refreshToken,
+                    "Refresh token"
+            );
         } catch (SimpleBadRequestException ex) {
             throw new SimpleBadRequestException("Invalid refresh token");
         }
@@ -180,10 +222,16 @@ public class AuthenticationService {
         return Map.of("message", "Refresh token revoked successfully");
     }
 
-    public ResponseEntity<Object> requestToToggleMfa(String type, String toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
+    public ResponseEntity<Object> requestToToggleMfa(String type,
+                                                     String toggle)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
         boolean toggleEnabled = validateToggle(toggle);
         UserModel user = getCurrentAuthenticatedUser();
-        return proceedRequestToToggleMfa(user, validateType(type, user, toggleEnabled), toggleEnabled);
+        return proceedRequestToToggleMfa(
+                user,
+                validateType(type, user, toggleEnabled),
+                toggleEnabled
+        );
     }
 
     private boolean validateToggle(String toggle) {
@@ -193,7 +241,9 @@ public class AuthenticationService {
         return toggle.equalsIgnoreCase("enable");
     }
 
-    private MfaType validateType(String type, UserModel user, boolean toggleEnabled) {
+    private MfaType validateType(String type,
+                                 UserModel user,
+                                 boolean toggleEnabled) {
         validateTypeExistence(type);
         unleashUtility.isMfaEnabledGlobally();
         MfaType mfaType = MfaType.valueOf(type.toUpperCase());
@@ -201,30 +251,51 @@ public class AuthenticationService {
             throw new ServiceUnavailableException(type + " Mfa is disabled globally");
         }
         boolean hasMfaType = user.hasMfaMethod(mfaType);
-        if (toggleEnabled && hasMfaType) {
+        if (toggleEnabled &&
+                hasMfaType) {
             throw new SimpleBadRequestException(type + " Mfa is already enabled");
         }
-        if (!toggleEnabled && !hasMfaType) {
+        if (!toggleEnabled &&
+                !hasMfaType) {
             throw new SimpleBadRequestException(type + " Mfa is already disabled");
         }
         return mfaType;
     }
 
-    private ResponseEntity<Object> proceedRequestToToggleMfa(UserModel user, MfaType type, boolean toggleEnabled) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
+    private ResponseEntity<Object> proceedRequestToToggleMfa(UserModel user,
+                                                             MfaType type,
+                                                             boolean toggleEnabled)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
         if (toggleEnabled) {
             switch (type) {
                 case EMAIL_MFA -> {
-                    mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp to enable email Mfa", generateOtpForEmailMfa(user), OTP);
+                    mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(
+                                    user.getEmail(),
+                                    String.class
+                            ),
+                            "Otp to enable email Mfa",
+                            generateOtpForEmailMfa(user),
+                            OTP
+                    );
                     return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
                 }
                 case AUTHENTICATOR_APP_MFA -> {
-                    return ResponseEntity.ok().contentType(MediaType.IMAGE_PNG).body(generateQrCodeForAuthenticatorApp(user));
+                    return ResponseEntity.ok()
+                            .contentType(MediaType.IMAGE_PNG)
+                            .body(generateQrCodeForAuthenticatorApp(user));
                 }
             }
         } else {
             switch (type) {
                 case EMAIL_MFA -> {
-                    mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp to disable email Mfa", generateOtpForEmailMfa(user), OTP);
+                    mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(
+                                    user.getEmail(),
+                                    String.class
+                            ),
+                            "Otp to disable email Mfa",
+                            generateOtpForEmailMfa(user),
+                            OTP
+                    );
                     return ResponseEntity.ok(Map.of("message", "Otp sent to your registered email address. Please check your email to continue"));
                 }
                 case AUTHENTICATOR_APP_MFA -> {
@@ -235,70 +306,120 @@ public class AuthenticationService {
         throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
     }
 
-    private String generateOtpForEmailMfa(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateOtpForEmailMfa(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String otp = generateOtp();
-        redisService.save(getEncryptedEmailMfaOtpKey(user), genericAesRandomEncryptorDecryptor.encrypt(otp));
+        redisService.save(
+                getEncryptedEmailMfaOtpKey(user),
+                genericAesRandomEncryptorDecryptor.encrypt(otp)
+        );
         return otp;
     }
 
-    private String getEncryptedEmailMfaOtpKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailMfaOtpKey(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_MFA_OTP_PREFIX + user.getId());
     }
 
-    private byte[] generateQrCodeForAuthenticatorApp(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
-        return generateQrCode(generateTotpUrl("God Level Security", user.getUsername(), generateAuthenticatorAppSecret(user)));
+    private byte[] generateQrCodeForAuthenticatorApp(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, IOException, WriterException {
+        return generateQrCode(generateTotpUrl(
+                        "God Level Security",
+                        user.getUsername(),
+                        generateAuthenticatorAppSecret(user)
+                )
+        );
     }
 
-    private String generateAuthenticatorAppSecret(UserModel user) throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateAuthenticatorAppSecret(UserModel user)
+            throws NoSuchAlgorithmException, InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         String secret = generateBase32Secret();
-        redisService.save(getEncryptedSecretKey(user), genericAesRandomEncryptorDecryptor.encrypt(secret));
+        redisService.save(
+                getEncryptedSecretKey(user),
+                genericAesRandomEncryptorDecryptor.encrypt(secret)
+        );
         return secret;
     }
 
-    private String getEncryptedSecretKey(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedSecretKey(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(AUTHENTICATOR_APP_SECRET_PREFIX + user.getId());
     }
 
-    public Map<String, String> verifyToggleMfa(String type, String toggle, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> verifyToggleMfa(String type,
+                                               String toggle,
+                                               String otpTotp)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         boolean toggleEnabled = validateToggle(toggle);
         UserModel user = getCurrentAuthenticatedUser();
-        return proceedToVerifyToggleMfa(user, validateType(type, user, toggleEnabled), toggleEnabled, otpTotp);
+        return proceedToVerifyToggleMfa(
+                user,
+                validateType(type, user, toggleEnabled),
+                toggleEnabled,
+                otpTotp
+        );
     }
 
-    private Map<String, String> proceedToVerifyToggleMfa(UserModel user, MfaType type, boolean toggleEnabled, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> proceedToVerifyToggleMfa(UserModel user,
+                                                         MfaType type,
+                                                         boolean toggleEnabled,
+                                                         String otpTotp)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (toggleEnabled) {
             switch (type) {
                 case EMAIL_MFA -> {
-                    return verifyOtpToToggleEmailMfa(user, otpTotp, true);
+                    return verifyOtpToToggleEmailMfa(
+                            user,
+                            otpTotp,
+                            true
+                    );
                 }
                 case AUTHENTICATOR_APP_MFA -> {
-                    return verifyTotpToEnableAuthenticatorAppMfa(user, otpTotp);
+                    return verifyTotpToEnableAuthenticatorAppMfa(
+                            user,
+                            otpTotp
+                    );
                 }
             }
         } else {
             switch (type) {
                 case EMAIL_MFA -> {
-                    return verifyOtpToToggleEmailMfa(user, otpTotp, false);
+                    return verifyOtpToToggleEmailMfa(
+                            user,
+                            otpTotp,
+                            false
+                    );
                 }
                 case AUTHENTICATOR_APP_MFA -> {
-                    return verifyTotpToDisableAuthenticatorAppMfa(user, otpTotp);
+                    return verifyTotpToDisableAuthenticatorAppMfa(
+                            user,
+                            otpTotp
+                    );
                 }
             }
         }
         throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
     }
 
-    private Map<String, String> verifyOtpToToggleEmailMfa(UserModel user, String otp, boolean toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> verifyOtpToToggleEmailMfa(UserModel user,
+                                                          String otp,
+                                                          boolean toggle)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         validateOtpTotp(otp);
         String encryptedEmailMfaOtpKey = getEncryptedEmailMfaOtpKey(user);
         Object encryptedOtp = redisService.get(encryptedEmailMfaOtpKey);
         if (encryptedOtp != null) {
-            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(otp)) {
+            if (genericAesRandomEncryptorDecryptor.decrypt(
+                            (String) encryptedOtp,
+                            String.class
+                    )
+                    .equals(otp)) {
                 try {
                     redisService.delete(encryptedEmailMfaOtpKey);
                 } catch (Exception ignored) {
                 }
-                user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+                user = userRepo.findById(user.getId())
+                        .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
                 if (toggle) {
                     user.addMfaMethod(EMAIL_MFA);
                 } else {
@@ -307,7 +428,11 @@ public class AuthenticationService {
                 user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
                 accessTokenUtility.revokeTokens(Set.of(user));
                 userRepo.save(user);
-                emailConfirmationOnMfaToggle(user, EMAIL_MFA, toggle);
+                emailConfirmationOnMfaToggle(
+                        user,
+                        EMAIL_MFA,
+                        toggle
+                );
                 if (toggle) {
                     return Map.of("message", "Email Mfa enabled successfully. Please log in again to continue");
                 } else {
@@ -321,37 +446,62 @@ public class AuthenticationService {
 
     private void validateOtpTotp(String otpTotp) {
         try {
-            validateOtp(otpTotp, "Otp/Totp");
+            validateOtp(
+                    otpTotp,
+                    "Otp/Totp"
+            );
         } catch (SimpleBadRequestException ex) {
             throw new SimpleBadRequestException("Invalid Otp/Totp");
         }
     }
 
-    private void emailConfirmationOnMfaToggle(UserModel user, MfaType type, boolean toggle) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void emailConfirmationOnMfaToggle(UserModel user,
+                                              MfaType type,
+                                              boolean toggle)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_MFA_ENABLE_DISABLE.name())) {
             String action = toggle ? "enabled" : "disabled";
-            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Mfa " + action + " confirmation", "Your " + type + " Mfa has been " + action, SELF_MFA_ENABLE_DISABLE_CONFIRMATION);
+            mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(
+                            user.getEmail(),
+                            String.class
+                    ),
+                    "Mfa " + action + " confirmation",
+                    "Your " + type + " Mfa has been " + action,
+                    SELF_MFA_ENABLE_DISABLE_CONFIRMATION);
         }
     }
 
-    private Map<String, String> verifyTotpToEnableAuthenticatorAppMfa(UserModel user, String totp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> verifyTotpToEnableAuthenticatorAppMfa(UserModel user,
+                                                                      String totp)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         validateOtpTotp(totp);
         String encryptedSecretKey = getEncryptedSecretKey(user);
         Object encryptedSecret = redisService.get(encryptedSecretKey);
         if (encryptedSecret != null) {
-            String secret = genericAesRandomEncryptorDecryptor.decrypt((String) encryptedSecret, String.class);
-            if (verifyTotp(secret, totp)) {
+            String secret = genericAesRandomEncryptorDecryptor.decrypt(
+                    (String) encryptedSecret,
+                    String.class
+            );
+            if (verifyTotp(
+                    secret,
+                    totp
+            )) {
                 try {
                     redisService.delete(encryptedSecretKey);
                 } catch (Exception ignored) {
                 }
-                user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+                user = userRepo.findById(user.getId())
+                        .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
                 user.addMfaMethod(AUTHENTICATOR_APP_MFA);
                 user.setAuthAppSecret(genericAesRandomEncryptorDecryptor.encrypt(secret));
                 user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
                 accessTokenUtility.revokeTokens(Set.of(user));
                 userRepo.save(user);
-                emailConfirmationOnMfaToggle(user, AUTHENTICATOR_APP_MFA, true);
+                emailConfirmationOnMfaToggle(
+                        user,
+                        AUTHENTICATOR_APP_MFA,
+                        true
+                );
                 return Map.of("message", "Authenticator app Mfa enabled successfully. Please log in again to continue");
             }
             throw new SimpleBadRequestException("Invalid Totp");
@@ -359,10 +509,18 @@ public class AuthenticationService {
         throw new SimpleBadRequestException("Invalid Totp");
     }
 
-    private Map<String, String> verifyTotpToDisableAuthenticatorAppMfa(UserModel user, String totp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> verifyTotpToDisableAuthenticatorAppMfa(UserModel user,
+                                                                       String totp)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         validateOtpTotp(totp);
-        user = userRepo.findById(user.getId()).orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
-        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), totp)) {
+        user = userRepo.findById(user.getId())
+                .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
+        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(
+                        user.getAuthAppSecret(),
+                        String.class
+                ),
+                totp
+        )) {
             throw new SimpleBadRequestException("Invalid Totp");
         }
         user.removeMfaMethod(AUTHENTICATOR_APP_MFA);
@@ -370,15 +528,24 @@ public class AuthenticationService {
         user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
         accessTokenUtility.revokeTokens(Set.of(user));
         userRepo.save(user);
-        emailConfirmationOnMfaToggle(user, AUTHENTICATOR_APP_MFA, false);
+        emailConfirmationOnMfaToggle(
+                user,
+                AUTHENTICATOR_APP_MFA,
+                false
+        );
         return Map.of("message", "Authenticator app Mfa disabled successfully. Please log in again to continue");
     }
 
-    public Map<String, String> requestToLoginMfa(String type, String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> requestToLoginMfa(String type,
+                                                 String stateToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         validateTypeExistence(type);
         unleashUtility.isMfaEnabledGlobally();
         try {
-            validateUuid(stateToken, "State token");
+            validateUuid(
+                    stateToken,
+                    "State token"
+            );
         } catch (SimpleBadRequestException ex) {
             throw new SimpleBadRequestException("Invalid state token");
         }
@@ -412,50 +579,84 @@ public class AuthenticationService {
         throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
     }
 
-    private UserModel getUser(String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        return userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(getEncryptedStateTokenMappingKey(stateToken))).orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
+    private UserModel getUser(String stateToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(getEncryptedStateTokenMappingKey(stateToken)))
+                .orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
     }
 
-    private UUID getUserIdFromEncryptedStateTokenMappingKey(String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UUID getUserIdFromEncryptedStateTokenMappingKey(String encryptedStateTokenMappingKey)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Object encryptedUserId = redisService.get(encryptedStateTokenMappingKey);
         if (encryptedUserId != null) {
-            return genericAesRandomEncryptorDecryptor.decrypt((String) encryptedUserId, UUID.class);
+            return genericAesRandomEncryptorDecryptor.decrypt(
+                    (String) encryptedUserId,
+                    UUID.class
+            );
         }
         throw new SimpleBadRequestException("Invalid state token");
     }
 
-    private String getEncryptedStateTokenMappingKey(String stateToken) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedStateTokenMappingKey(String stateToken)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return genericAesStaticEncryptorDecryptor.encrypt(STATE_TOKEN_MAPPING_PREFIX + stateToken);
     }
 
-    private Map<String, String> sendEmailOtpToLoginMfa(UserModel user) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        mailService.sendEmailAsync(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail(), String.class), "Otp to verify email Mfa to login", generateOtpForEmailMfa(user), OTP);
+    private Map<String, String> sendEmailOtpToLoginMfa(UserModel user)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        mailService.sendEmailAsync(
+                genericAesStaticEncryptorDecryptor.decrypt(
+                        user.getEmail(),
+                        String.class
+                ),
+                "Otp to verify email Mfa to login",
+                generateOtpForEmailMfa(user),
+                OTP
+        );
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
     }
 
-    public Map<String, Object> verifyMfaToLogin(String type, String stateToken, String otpTotp) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+    public Map<String, Object> verifyMfaToLogin(String type,
+                                                String stateToken,
+                                                String otpTotp)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
         validateTypeExistence(type);
         unleashUtility.isMfaEnabledGlobally();
         try {
-            validateUuid(stateToken, "State token");
-            validateOtp(otpTotp, "Otp/Totp");
+            validateUuid(
+                    stateToken,
+                    "State token"
+            );
+            validateOtp(
+                    otpTotp,
+                    "Otp/Totp"
+            );
         } catch (SimpleBadRequestException ex) {
             throw new SimpleBadRequestException("Invalid Otp/Totp or state token");
         }
         String encryptedStateTokenMappingKey = getEncryptedStateTokenMappingKey(stateToken);
-        UserModel user = userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(encryptedStateTokenMappingKey)).orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
+        UserModel user = userRepo.findById(getUserIdFromEncryptedStateTokenMappingKey(encryptedStateTokenMappingKey))
+                .orElseThrow(() -> new SimpleBadRequestException("Invalid state token"));
         switch (MfaType.valueOf(type.toUpperCase())) {
             case EMAIL_MFA -> {
                 if (user.getMfaMethods().isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
                         throw new SimpleBadRequestException("Email Mfa is not enabled");
                     }
-                    return verifyEmailOtpToLogin(user, otpTotp, encryptedStateTokenMappingKey);
+                    return verifyEmailOtpToLogin(
+                            user,
+                            otpTotp,
+                            encryptedStateTokenMappingKey
+                    );
                 } else if (user.hasMfaMethod(EMAIL_MFA)) {
                     if (!unleash.isEnabled(MFA_EMAIL.name())) {
                         throw new ServiceUnavailableException("Email Mfa is disabled globally");
                     }
-                    return verifyEmailOtpToLogin(user, otpTotp, encryptedStateTokenMappingKey);
+                    return verifyEmailOtpToLogin(
+                            user,
+                            otpTotp,
+                            encryptedStateTokenMappingKey
+                    );
                 } else {
                     throw new SimpleBadRequestException("Email Mfa is not enabled");
                 }
@@ -467,20 +668,37 @@ public class AuthenticationService {
                 if (!user.hasMfaMethod(AUTHENTICATOR_APP_MFA)) {
                     throw new SimpleBadRequestException("Authenticator app Mfa is not enabled");
                 }
-                return verifyAuthenticatorAppTotpToLogin(user, otpTotp, encryptedStateTokenMappingKey);
+                return verifyAuthenticatorAppTotpToLogin(
+                        user,
+                        otpTotp,
+                        encryptedStateTokenMappingKey
+                );
             }
         }
         throw new SimpleBadRequestException("Unsupported Mfa type: " + type + ". Supported types: " + MFA_METHODS);
     }
 
-    private Map<String, Object> verifyEmailOtpToLogin(UserModel user, String otp, String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+    private Map<String, Object> verifyEmailOtpToLogin(UserModel user,
+                                                      String otp,
+                                                      String encryptedStateTokenMappingKey)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
         checkLockedStatus(user);
         String encryptedEmailMfaOtpKey = getEncryptedEmailMfaOtpKey(user);
         Object encryptedOtp = redisService.get(encryptedEmailMfaOtpKey);
         if (encryptedOtp != null) {
-            if (genericAesRandomEncryptorDecryptor.decrypt((String) encryptedOtp, String.class).equals(otp)) {
+            if (genericAesRandomEncryptorDecryptor.decrypt(
+                            (String) encryptedOtp,
+                            String.class
+                    )
+                    .equals(otp)
+            ) {
                 try {
-                    redisService.deleteAll(Set.of(getEncryptedStateTokenKey(user), encryptedStateTokenMappingKey, encryptedEmailMfaOtpKey));
+                    redisService.deleteAll(Set.of(
+                                    getEncryptedStateTokenKey(user),
+                                    encryptedStateTokenMappingKey,
+                                    encryptedEmailMfaOtpKey
+                            )
+                    );
                 } catch (Exception ignored) {
                 }
                 return accessTokenUtility.generateTokens(user);
@@ -493,7 +711,14 @@ public class AuthenticationService {
     }
 
     private void checkLockedStatus(UserModel user) {
-        if (user.isAccountLocked() && user.getLockedAt().plus(1, ChronoUnit.DAYS).isAfter(Instant.now())) {
+        if (user.isAccountLocked() &&
+                user.getLockedAt()
+                        .plus(
+                                1,
+                                ChronoUnit.DAYS
+                        )
+                        .isAfter(Instant.now())
+        ) {
             throw new LockedException("Account is locked due to too many failed mfa attempts. Please try again later");
         }
     }
@@ -503,11 +728,24 @@ public class AuthenticationService {
         userRepo.save(user);
     }
 
-    private Map<String, Object> verifyAuthenticatorAppTotpToLogin(UserModel user, String totp, String encryptedStateTokenMappingKey) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
+    private Map<String, Object> verifyAuthenticatorAppTotpToLogin(
+            UserModel user,
+            String totp,
+            String encryptedStateTokenMappingKey)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException, JoseException {
         checkLockedStatus(user);
-        if (verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret(), String.class), totp)) {
+        if (verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(
+                        user.getAuthAppSecret(),
+                        String.class
+                ),
+                totp
+        )) {
             try {
-                redisService.deleteAll(Set.of(getEncryptedStateTokenKey(user), encryptedStateTokenMappingKey));
+                redisService.deleteAll(Set.of(
+                                getEncryptedStateTokenKey(user),
+                                encryptedStateTokenMappingKey
+                        )
+                );
             } catch (Exception ignored) {
             }
             return accessTokenUtility.generateTokens(user);
