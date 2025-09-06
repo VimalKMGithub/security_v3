@@ -44,8 +44,10 @@ public class RoleModel {
     private boolean systemRole = false;
 
     @ManyToMany(fetch = FetchType.EAGER,
-            cascade = {CascadeType.PERSIST,
-                    CascadeType.MERGE})
+            cascade = {
+                    CascadeType.PERSIST,
+                    CascadeType.MERGE
+            })
     @JoinTable(name = "role_permissions",
             joinColumns = @JoinColumn(
                     name = "role_name",
