@@ -21,22 +21,46 @@ import static org.vimal.security.v3.utils.JsonUtility.toJson;
 public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthenticationException(AuthenticationException ex) {
-        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("error", "Unauthorized", "message", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                .body(Map.of(
+                                "error", "Unauthorized",
+                                "message", ex.getMessage()
+                        )
+                );
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDeniedException(AccessDeniedException ex) {
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(Map.of("error", "Forbidden", "message", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.FORBIDDEN)
+                .body(Map.of(
+                                "error", "Forbidden",
+                                "message", ex.getMessage()
+                        )
+                );
     }
 
     @ExceptionHandler(ServiceUnavailableException.class)
     public ResponseEntity<Map<String, String>> handleServiceUnavailableException(ServiceUnavailableException ex) {
-        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(Map.of("message", "Service Unavailable", "reason", ex.getMessage()));
+        return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE)
+                .body(Map.of(
+                                "message", "Service Unavailable",
+                                "reason", ex.getMessage()
+                        )
+                );
     }
 
-    @ExceptionHandler({SimpleBadRequestException.class, HttpMessageNotReadableException.class, NoResourceFoundException.class, MissingRequestValueException.class})
+    @ExceptionHandler({
+            SimpleBadRequestException.class,
+            HttpMessageNotReadableException.class,
+            NoResourceFoundException.class,
+            MissingRequestValueException.class})
     public ResponseEntity<Map<String, String>> handleBadRequestExceptions(Exception ex) {
-        return ResponseEntity.badRequest().body(Map.of("error", "Bad Request", "message", ex.getMessage()));
+        return ResponseEntity.badRequest()
+                .body(Map.of(
+                                "error", "Bad Request",
+                                "message", ex.getMessage()
+                        )
+                );
     }
 
     @ExceptionHandler(Exception.class)
