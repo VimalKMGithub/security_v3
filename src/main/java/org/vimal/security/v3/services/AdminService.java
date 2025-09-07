@@ -1,6 +1,5 @@
 package org.vimal.security.v3.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.getunleash.Unleash;
 import io.getunleash.variant.Variant;
 import lombok.RequiredArgsConstructor;
@@ -23,12 +22,6 @@ import org.vimal.security.v3.repos.UserRepo;
 import org.vimal.security.v3.utils.AccessTokenUtility;
 import org.vimal.security.v3.utils.MapperUtility;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.util.*;
 
@@ -62,8 +55,7 @@ public class AdminService {
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
     public ResponseEntity<Map<String, Object>> createUsers(Set<UserCreationDto> dtos,
-                                                           String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           String leniency) throws Exception {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
         String creatorHighestTopRole = getUserHighestTopRole(creator);
@@ -248,8 +240,7 @@ public class AdminService {
     }
 
     private ValidateInputsForUsersCreationResultDto validateInputsForUsersCreation(Set<UserCreationDto> dtos,
-                                                                                   String creatorHighestTopRole)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                                   String creatorHighestTopRole) throws Exception {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> usernames = new HashSet<>();
         Set<String> encryptedUsernames = new HashSet<>();
@@ -444,8 +435,7 @@ public class AdminService {
                                   Set<RoleModel> roles,
                                   String decryptedCreatorUsername,
                                   Map<String, String> usernameToEncryptedUsernameMap,
-                                  Map<String, String> emailToEncryptedEmailMap)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                  Map<String, String> emailToEncryptedEmailMap) throws Exception {
         String encryptedEmail = emailToEncryptedEmailMap.get(dto.getEmail());
         return UserModel.builder()
                 .username(usernameToEncryptedUsernameMap.get(dto.getUsername()))
@@ -469,8 +459,7 @@ public class AdminService {
 
     public ResponseEntity<Map<String, Object>> deleteUsers(Set<String> usernamesOrEmails,
                                                            String hard,
-                                                           String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           String leniency) throws Exception {
         boolean hardDelete = validateHardDeletion(
                 hard,
                 "hard"
@@ -544,8 +533,7 @@ public class AdminService {
     private ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsers(Set<String> usernamesOrEmails,
                                                                                UserDetailsImpl deleter,
                                                                                String deleterHighestTopRole,
-                                                                               boolean hardDelete)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                               boolean hardDelete) throws Exception {
         Variant variant = unleash.getVariant(ALLOW_DELETE_USERS.name());
         if (entryCheck(
                 variant,
@@ -652,8 +640,7 @@ public class AdminService {
                                                                          String deleterUsername,
                                                                          String deleterHighestTopRole,
                                                                          boolean hardDelete,
-                                                                         Map<String, Object> mapOfErrors)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                         Map<String, Object> mapOfErrors) throws Exception {
         Set<String> tempSet = new HashSet<>();
         Map<String, String> tempMap = new HashMap<>();
         String tempStr;
@@ -728,8 +715,7 @@ public class AdminService {
                                        String deleterHighestTopRole,
                                        Set<String> restrictedRoles,
                                        Set<UserModel> usersToDelete,
-                                       boolean hardDelete)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                       boolean hardDelete) throws Exception {
         boolean recollectIdentifier = false;
         if (hardDelete) {
             boolean collectUser = validateRoleRestriction(
@@ -787,8 +773,7 @@ public class AdminService {
     }
 
     public ResponseEntity<Map<String, Object>> readUsers(Set<String> usernamesOrEmails,
-                                                         String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                         String leniency) throws Exception {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl reader = getCurrentAuthenticatedUserDetails();
         String readerHighestTopRole = getUserHighestTopRole(reader);
@@ -941,8 +926,7 @@ public class AdminService {
     }
 
     public ResponseEntity<Map<String, Object>> updateUsers(Set<UserUpdationDto> dtos,
-                                                           String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           String leniency) throws Exception {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
         String updaterHighestTopRole = getUserHighestTopRole(updater);
@@ -1078,8 +1062,7 @@ public class AdminService {
     }
 
     private ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdation(Set<UserUpdationDto> dtos,
-                                                                                   String updaterHighestTopRole)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                                   String updaterHighestTopRole) throws Exception {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> usernames = new HashSet<>();
         Set<String> encryptedUsernames = new HashSet<>();
@@ -1300,8 +1283,7 @@ public class AdminService {
                                                                            AlreadyTakenUsernamesAndEmailsResultDto alreadyTakenUsernamesAndEmailsResult,
                                                                            UserDetailsImpl updater,
                                                                            String updaterHighestTopRole,
-                                                                           Map<String, Object> mapOfErrors)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                           Map<String, Object> mapOfErrors) throws Exception {
         Map<String, UserModel> encryptedOldUsernameToUserMap = new HashMap<>();
         for (UserModel user : userRepo.findByUsernameIn(validateInputsForUsersUpdationResult.getEncryptedOldUsernames())) {
             encryptedOldUsernameToUserMap.put(user.getUsername(), user);
@@ -1453,8 +1435,7 @@ public class AdminService {
     }
 
     public ResponseEntity<Map<String, Object>> createRoles(Set<RoleCreationDto> dtos,
-                                                           String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           String leniency) throws Exception {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
         String creatorHighestTopRole = getUserHighestTopRole(creator);
@@ -1697,8 +1678,7 @@ public class AdminService {
 
     private RoleModel toRoleModel(RoleCreationDto dto,
                                   Set<PermissionModel> permissions,
-                                  String creator)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                  String creator) throws Exception {
         return RoleModel.builder()
                 .roleName(dto.getRoleName())
                 .description(dto.getDescription())
@@ -1709,8 +1689,7 @@ public class AdminService {
 
     public ResponseEntity<Map<String, Object>> deleteRoles(Set<String> roleNames,
                                                            String force,
-                                                           String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           String leniency) throws Exception {
         boolean forceDelete = validateHardDeletion(
                 force,
                 "force"
@@ -1776,8 +1755,7 @@ public class AdminService {
 
     private ValidateInputsForDeleteRolesResultDto validateInputsForDeleteRoles(Set<String> roleNames,
                                                                                String deleterHighestTopRole,
-                                                                               boolean forceDelete)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                               boolean forceDelete) throws Exception {
         Variant variant = unleash.getVariant(ALLOW_DELETE_ROLES.name());
         if (entryCheck(
                 variant,
@@ -1854,8 +1832,7 @@ public class AdminService {
 
     private ValidateInputsForDeleteRolesResultDto getRolesDeletionResult(Set<String> roleNames,
                                                                          boolean forceDelete,
-                                                                         Map<String, Object> mapOfErrors)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                         Map<String, Object> mapOfErrors) throws Exception {
         Set<String> systemRoleNames = new HashSet<>();
         Set<RoleModel> rolesToDelete = new HashSet<>();
         Set<UUID> idsOfUsersWeHaveToRemoveTokens = new HashSet<>();
