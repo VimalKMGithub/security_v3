@@ -232,7 +232,8 @@ public class AuthenticationService {
         validateTypeExistence(type);
         unleashUtility.isMfaEnabledGlobally();
         MfaType mfaType = MfaType.valueOf(type.toUpperCase());
-        if (!unleash.isEnabled(mfaType.toFeatureFlag().name())) {
+        if (!unleash.isEnabled(mfaType.toFeatureFlag()
+                .name())) {
             throw new ServiceUnavailableException(type + " Mfa is disabled globally");
         }
         boolean hasMfaType = user.hasMfaMethod(mfaType);
