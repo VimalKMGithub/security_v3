@@ -471,7 +471,10 @@ public class AdminService {
                                                            String hard,
                                                            String leniency)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
-        boolean hardDelete = validateHardDeletion(hard);
+        boolean hardDelete = validateHardDeletion(
+                hard,
+                "hard"
+        );
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
         String deleterHighestTopRole = getUserHighestTopRole(deleter);
@@ -530,11 +533,12 @@ public class AdminService {
         }
     }
 
-    private boolean validateHardDeletion(String hard) {
-        if (!TOGGLE_TYPE.contains(hard.toLowerCase())) {
-            throw new SimpleBadRequestException("Unsupported hard deletion type: " + hard + ". Supported values: " + TOGGLE_TYPE);
+    private boolean validateHardDeletion(String check,
+                                         String name) {
+        if (!TOGGLE_TYPE.contains(check.toLowerCase())) {
+            throw new SimpleBadRequestException("Unsupported " + name + " deletion type: " + check + ". Supported values: " + TOGGLE_TYPE);
         }
-        return hard.equalsIgnoreCase("enable");
+        return check.equalsIgnoreCase("enable");
     }
 
     private ValidateInputsForDeleteUsersResultDto validateInputsForDeleteUsers(Set<String> usernamesOrEmails,
@@ -1698,5 +1702,40 @@ public class AdminService {
                 .permissions(permissions)
                 .createdBy(genericAesRandomEncryptorDecryptor.encrypt(creator))
                 .build();
+    }
+
+    public ResponseEntity<Map<String, Object>> deleteRoles(Set<String> roleNames,
+                                                           String force,
+                                                           String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean forceDelete = validateHardDeletion(
+                force,
+                "force"
+        );
+        boolean isLenient = validateLeniency(leniency);
+        UserDetailsImpl deleter = getCurrentAuthenticatedUserDetails();
+        String deleterHighestTopRole = getUserHighestTopRole(deleter);
+        if (forceDelete) {
+            if (unleash.isEnabled(ALLOW_FORCE_DELETE_ROLES.name()) ||
+                    TOP_ROLES.getFirst().equals(deleterHighestTopRole)) {
+                checkUserCanForceDeleteRoles(deleterHighestTopRole);
+            } else {
+                throw new ServiceUnavailableException("Force deletion of roles is currently disabled. Please try again later");
+            }
+        }
+    }
+
+    private void checkUserCanForceDeleteRoles(String deleterHighestTopRole) {
+        if (deleterHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_FORCE_DELETE_ROLES_BY_USERS_HAVE_PERMISSION_TO_DELETE_ROLES.name())) {
+            throw new ServiceUnavailableException("Force deletion of roles is currently disabled. Please try again later");
+        }
+    }
+
+    private void checkUserCanDeleteRoles(String deleterHighestTopRole) {
+        if (deleterHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_DELETE_ROLES_BY_USERS_HAVE_PERMISSION_TO_DELETE_ROLES.name())) {
+            throw new ServiceUnavailableException("Deleting roles is currently disabled. Please try again later");
+        }
     }
 }

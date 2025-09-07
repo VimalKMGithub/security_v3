@@ -83,4 +83,17 @@ public class AdminController {
                 leniency
         );
     }
+
+    @DeleteMapping("/delete/roles")
+    @PreAuthorize("@PreAuth.canDeleteRoles()")
+    public ResponseEntity<Map<String, Object>> deleteRoles(@RequestBody Set<String> roleNames,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String force,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.deleteRoles(
+                roleNames,
+                force,
+                leniency
+        );
+    }
 }
