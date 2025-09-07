@@ -1,6 +1,5 @@
 package org.vimal.security.v3.controllers;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -10,12 +9,6 @@ import org.vimal.security.v3.dtos.UserCreationDto;
 import org.vimal.security.v3.dtos.UserUpdationDto;
 import org.vimal.security.v3.services.AdminService;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.Map;
 import java.util.Set;
 
@@ -30,8 +23,7 @@ public class AdminController {
     @PostMapping("/create/users")
     @PreAuthorize("@PreAuth.canCreateUsers()")
     public ResponseEntity<Map<String, Object>> createUsers(@RequestBody Set<UserCreationDto> dtos,
-                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.createUsers(
                 dtos,
                 leniency
@@ -42,8 +34,7 @@ public class AdminController {
     @PreAuthorize("@PreAuth.canDeleteUsers()")
     public ResponseEntity<Map<String, Object>> deleteUsers(@RequestBody Set<String> usernamesOrEmails,
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String hard,
-                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.deleteUsers(
                 usernamesOrEmails,
                 hard,
@@ -54,8 +45,7 @@ public class AdminController {
     @GetMapping("/read/users")
     @PreAuthorize("@PreAuth.canReadUsers()")
     public ResponseEntity<Map<String, Object>> readUsers(@RequestBody Set<String> usernamesOrEmails,
-                                                         @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                         @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.readUsers(
                 usernamesOrEmails,
                 leniency
@@ -65,8 +55,7 @@ public class AdminController {
     @PutMapping("/update/users")
     @PreAuthorize("@PreAuth.canUpdateUsers()")
     public ResponseEntity<Map<String, Object>> updateUsers(@RequestBody Set<UserUpdationDto> dtos,
-                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.updateUsers(
                 dtos,
                 leniency
@@ -76,8 +65,7 @@ public class AdminController {
     @PostMapping("/create/roles")
     @PreAuthorize("@PreAuth.canCreateRoles()")
     public ResponseEntity<Map<String, Object>> createRoles(@RequestBody Set<RoleCreationDto> dtos,
-                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.createRoles(
                 dtos,
                 leniency
@@ -88,8 +76,7 @@ public class AdminController {
     @PreAuthorize("@PreAuth.canDeleteRoles()")
     public ResponseEntity<Map<String, Object>> deleteRoles(@RequestBody Set<String> roleNames,
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String force,
-                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.deleteRoles(
                 roleNames,
                 force,
