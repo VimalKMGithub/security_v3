@@ -1731,6 +1731,40 @@ public class AdminService {
                 deleterHighestTopRole,
                 forceDelete
         );
+        if (!isLenient) {
+            if (!validateInputsForDeleteRolesResult.getMapOfErrors()
+                    .isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(validateInputsForDeleteRolesResult.getMapOfErrors());
+            } else if (validateInputsForDeleteRolesResult.getRolesToDelete()
+                    .isEmpty()) {
+                return ResponseEntity.ok(Map.of("message", "No roles deleted"));
+            }
+        }
+        if (!validateInputsForDeleteRolesResult.getRolesToDelete()
+                .isEmpty()) {
+            roleRepo.deleteAll(validateInputsForDeleteRolesResult.getRolesToDelete());
+            if (isLenient &&
+                    !validateInputsForDeleteRolesResult.getMapOfErrors()
+                            .isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                                "message", "Some roles deleted successfully",
+                                "reasons_due_to_which_some_roles_has_not_been_deleted", validateInputsForDeleteRolesResult.getMapOfErrors()
+                        )
+                );
+            }
+            return ResponseEntity.ok(Map.of("message", "Roles deleted successfully"));
+        } else {
+            if (!validateInputsForDeleteRolesResult.getMapOfErrors()
+                    .isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                                "message", "No roles deleted",
+                                "reasons_due_to_which_roles_has_not_been_deleted", validateInputsForDeleteRolesResult.getMapOfErrors()
+                        )
+                );
+            }
+            return ResponseEntity.ok(Map.of("message", "No roles deleted"));
+        }
     }
 
     private void checkUserCanForceDeleteRoles(String deleterHighestTopRole) {
