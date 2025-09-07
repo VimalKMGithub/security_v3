@@ -1374,10 +1374,13 @@ public class AdminService {
             if (dto.getRoles() != null) {
                 if (dto.getRoles()
                         .isEmpty()) {
-                    userToUpdate.getRoles()
-                            .clear();
-                    isUpdated = true;
-                    shouldRemoveTokens = true;
+                    if (!userToUpdate.getRoles()
+                            .isEmpty()) {
+                        userToUpdate.getRoles()
+                                .clear();
+                        isUpdated = true;
+                        shouldRemoveTokens = true;
+                    }
                 } else {
                     Set<RoleModel> rolesToAssign = new HashSet<>();
                     for (String roleName : dto.getRoles()) {
@@ -1449,7 +1452,7 @@ public class AdminService {
                     variant,
                     dtos
             );
-            ValidateInputsForRolesCreationResultDto validateInputsForRolesCreationResult = validateInputsForRolesCreation(dtos);
+            ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationResult = validateInputsForRolesCreationOrUpdation(dtos);
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForRolesCreationResult);
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
@@ -1574,7 +1577,7 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForRolesCreationResultDto validateInputsForRolesCreation(Set<RoleCreationDto> dtos) {
+    private ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationOrUpdation(Set<RoleCreationDto> dtos) {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> roleNames = new HashSet<>();
         Set<String> duplicateRoleNamesInDtos = new HashSet<>();
@@ -1615,7 +1618,7 @@ public class AdminService {
                 iterator.remove();
             }
         }
-        return new ValidateInputsForRolesCreationResultDto(
+        return new ValidateInputsForRolesCreationOrUpdationResultDto(
                 invalidInputs,
                 roleNames,
                 duplicateRoleNamesInDtos,
@@ -1638,15 +1641,15 @@ public class AdminService {
         }
     }
 
-    private Map<String, Object> errorsStuffingIfAny(ValidateInputsForRolesCreationResultDto validateInputsForRolesCreationResult) {
+    private Map<String, Object> errorsStuffingIfAny(ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationOrUpdationResult) {
         Map<String, Object> mapOfErrors = new HashMap<>();
-        if (!validateInputsForRolesCreationResult.getInvalidInputs()
+        if (!validateInputsForRolesCreationOrUpdationResult.getInvalidInputs()
                 .isEmpty()) {
-            mapOfErrors.put("invalid_inputs", validateInputsForRolesCreationResult.getInvalidInputs());
+            mapOfErrors.put("invalid_inputs", validateInputsForRolesCreationOrUpdationResult.getInvalidInputs());
         }
-        if (!validateInputsForRolesCreationResult.getDuplicateRoleNamesInDtos()
+        if (!validateInputsForRolesCreationOrUpdationResult.getDuplicateRoleNamesInDtos()
                 .isEmpty()) {
-            mapOfErrors.put("duplicate_role_names_in_request", validateInputsForRolesCreationResult.getDuplicateRoleNamesInDtos());
+            mapOfErrors.put("duplicate_role_names_in_request", validateInputsForRolesCreationOrUpdationResult.getDuplicateRoleNamesInDtos());
         }
         return mapOfErrors;
     }
@@ -1993,5 +1996,225 @@ public class AdminService {
         } else if (roleNames.size() > DEFAULT_MAX_ROLES_TO_READ_AT_A_TIME) {
             throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_ROLES_TO_READ_AT_A_TIME + " roles at a time");
         }
+    }
+
+    public ResponseEntity<Map<String, Object>> updateRoles(Set<RoleCreationDto> dtos,
+                                                           String leniency) throws Exception {
+        boolean isLenient = validateLeniency(leniency);
+        UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
+        String updaterHighestTopRole = getUserHighestTopRole(updater);
+        Variant variant = unleash.getVariant(ALLOW_UPDATE_ROLES.name());
+        if (entryCheck(
+                variant,
+                updaterHighestTopRole
+        )) {
+            checkUserCanUpdateRoles(updaterHighestTopRole);
+            validateDtosSizeForRolesUpdation(
+                    variant,
+                    dtos
+            );
+            ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesUpdationResult = validateInputsForRolesCreationOrUpdation(dtos);
+            Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForRolesUpdationResult);
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (dtos.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No roles updated"));
+                }
+            } else if (dtos.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles updated",
+                            "reasons_due_to_which_roles_has_not_been_updated", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No roles updated"));
+                }
+            }
+            Map<String, RoleModel> roleNameToRoleMap = new HashMap<>();
+            Set<String> systemRoleNames = new HashSet<>();
+            for (RoleModel role : roleRepo.findAllById(validateInputsForRolesUpdationResult.getRoleNames())) {
+                validateInputsForRolesUpdationResult.getRoleNames()
+                        .remove(role.getRoleName());
+                if (!role.isSystemRole()) {
+                    roleNameToRoleMap.put(role.getRoleName(), role);
+                } else {
+                    systemRoleNames.add(role.getRoleName());
+                }
+            }
+            if (!validateInputsForRolesUpdationResult.getRoleNames()
+                    .isEmpty()) {
+                mapOfErrors.put("roles_not_found", validateInputsForRolesUpdationResult.getRoleNames());
+            }
+            if (!systemRoleNames.isEmpty()) {
+                mapOfErrors.put("system_roles_cannot_be_updated", systemRoleNames);
+            }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (roleNameToRoleMap.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No roles updated"));
+                }
+            } else if (roleNameToRoleMap.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles updated",
+                            "reasons_due_to_which_roles_has_not_been_updated", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No roles updated"));
+                }
+            }
+            Map<String, PermissionModel> resolvedPermissionsMap = resolvePermissions(validateInputsForRolesUpdationResult.getPermissions());
+            if (!validateInputsForRolesUpdationResult.getPermissions()
+                    .isEmpty()) {
+                mapOfErrors.put("missing_permissions", validateInputsForRolesUpdationResult.getPermissions());
+            }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            RolesUpdationWithNewDetailsResultDto rolesUpdationWithNewDetailsResult = updateRolesWithNewDetails(
+                    dtos,
+                    roleNameToRoleMap,
+                    resolvedPermissionsMap,
+                    updater
+            );
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (rolesUpdationWithNewDetailsResult.getUpdatedRoles()
+                        .isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No roles updated"));
+                }
+            } else if (rolesUpdationWithNewDetailsResult.getUpdatedRoles()
+                    .isEmpty()) {
+                mapOfErrors.remove("missing_permissions");
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles updated",
+                            "reasons_due_to_which_roles_has_not_been_updated", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No roles updated"));
+                }
+            }
+            if (!rolesUpdationWithNewDetailsResult.getRoleNamesOfRolesWeHaveToRemoveFromUsers()
+                    .isEmpty()) {
+                Set<UUID> idsOfUsersWeHaveToRemoveTokens = roleRepo.findUserIdsByRoleNames(rolesUpdationWithNewDetailsResult.getRoleNamesOfRolesWeHaveToRemoveFromUsers());
+                if (!idsOfUsersWeHaveToRemoveTokens.isEmpty()) {
+                    accessTokenUtility.revokeTokensByUsersIds(idsOfUsersWeHaveToRemoveTokens);
+                }
+            }
+            List<RoleSummaryDto> updatedRoles = new ArrayList<>();
+            for (RoleModel role : roleRepo.saveAll(rolesUpdationWithNewDetailsResult.getUpdatedRoles())) {
+                updatedRoles.add(mapperUtility.toRoleSummaryDto(role));
+            }
+            mapOfErrors.remove("missing_permissions");
+            if (isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "updated_roles", updatedRoles,
+                        "reasons_due_to_which_some_roles_has_not_been_updated", mapOfErrors
+                ));
+            }
+            return ResponseEntity.ok(Map.of("updated_roles", updatedRoles));
+        }
+        throw new ServiceUnavailableException("Updating roles is currently disabled. Please try again later");
+    }
+
+    private void checkUserCanUpdateRoles(String updaterHighestTopRole) {
+        if (updaterHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_UPDATE_ROLES_BY_USERS_HAVE_PERMISSION_TO_UPDATE_ROLES.name())) {
+            throw new ServiceUnavailableException("Updating roles is currently disabled. Please try again later");
+        }
+    }
+
+    private void validateDtosSizeForRolesUpdation(Variant variant,
+                                                  Set<RoleCreationDto> dtos) {
+        if (dtos.isEmpty()) {
+            throw new SimpleBadRequestException("No roles to update");
+        }
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxRolesToUpdateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
+            if (maxRolesToUpdateAtATime < 1) {
+                maxRolesToUpdateAtATime = DEFAULT_MAX_ROLES_TO_UPDATE_AT_A_TIME;
+            }
+            if (dtos.size() > maxRolesToUpdateAtATime) {
+                throw new SimpleBadRequestException("Cannot update more than " + maxRolesToUpdateAtATime + " roles at a time");
+            }
+        } else if (dtos.size() > DEFAULT_MAX_ROLES_TO_UPDATE_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot update more than " + DEFAULT_MAX_ROLES_TO_UPDATE_AT_A_TIME + " roles at a time");
+        }
+    }
+
+    private RolesUpdationWithNewDetailsResultDto updateRolesWithNewDetails(Set<RoleCreationDto> dtos,
+                                                                           Map<String, RoleModel> roleNameToRoleMap,
+                                                                           Map<String, PermissionModel> resolvedPermissionsMap,
+                                                                           UserDetailsImpl updater) throws Exception {
+        Set<RoleModel> updatedRoles = new HashSet<>();
+        Set<String> removeTokensForRoleNames = new HashSet<>();
+        String decryptedUpdaterUsername = genericAesStaticEncryptorDecryptor.decrypt(updater.getUsername());
+        boolean isUpdated;
+        boolean shouldRemoveTokens;
+        for (RoleCreationDto dto : dtos) {
+            RoleModel roleToUpdate = roleNameToRoleMap.get(dto.getRoleName());
+            if (roleToUpdate == null) {
+                continue;
+            }
+            isUpdated = false;
+            shouldRemoveTokens = false;
+            if (dto.getDescription() != null &&
+                    !dto.getDescription().equals(roleToUpdate.getDescription())) {
+                roleToUpdate.setDescription(dto.getDescription());
+                isUpdated = true;
+            }
+            if (dto.getPermissions() != null) {
+                if (dto.getPermissions()
+                        .isEmpty()) {
+                    if (!roleToUpdate.getPermissions()
+                            .isEmpty()) {
+                        roleToUpdate.getPermissions()
+                                .clear();
+                        isUpdated = true;
+                        shouldRemoveTokens = true;
+                    }
+                } else {
+                    Set<PermissionModel> permissionsToAssign = new HashSet<>();
+                    for (String permissionName : dto.getPermissions()) {
+                        PermissionModel permission = resolvedPermissionsMap.get(permissionName);
+                        if (permission != null) {
+                            permissionsToAssign.add(permission);
+                        }
+                    }
+                    if (!roleToUpdate.getPermissions()
+                            .equals(permissionsToAssign)) {
+                        roleToUpdate.setPermissions(permissionsToAssign);
+                        isUpdated = true;
+                        shouldRemoveTokens = true;
+                    }
+                }
+            }
+            if (isUpdated) {
+                roleToUpdate.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt(decryptedUpdaterUsername));
+                updatedRoles.add(roleToUpdate);
+                if (shouldRemoveTokens) {
+                    removeTokensForRoleNames.add(roleToUpdate.getRoleName());
+                }
+            }
+        }
+        return new RolesUpdationWithNewDetailsResultDto(
+                updatedRoles,
+                removeTokensForRoleNames
+        );
     }
 }

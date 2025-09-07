@@ -93,4 +93,14 @@ public class AdminController {
                 leniency
         );
     }
+
+    @PutMapping("/update/roles")
+    @PreAuthorize("@PreAuth.canUpdateRoles()")
+    public ResponseEntity<Map<String, Object>> updateRoles(@RequestBody Set<RoleCreationDto> dtos,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
+        return adminService.updateRoles(
+                dtos,
+                leniency
+        );
+    }
 }

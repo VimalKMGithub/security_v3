@@ -4,6 +4,7 @@ import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.vimal.security.v3.models.RoleModel;
 
 import java.util.Set;
 
@@ -11,9 +12,7 @@ import java.util.Set;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ValidateInputsForRolesCreationResultDto {
-    private Set<String> invalidInputs;
-    private Set<String> roleNames;
-    private Set<String> duplicateRoleNamesInDtos;
-    private Set<String> permissions;
+public class RolesUpdationWithNewDetailsResultDto {
+    private Set<RoleModel> updatedRoles;
+    private Set<String> roleNamesOfRolesWeHaveToRemoveFromUsers;
 }
