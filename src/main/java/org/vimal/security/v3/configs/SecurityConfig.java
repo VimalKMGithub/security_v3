@@ -75,8 +75,14 @@ public class SecurityConfig {
                                 .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
                         )
                 )
-                .addFilterBefore(serverUpFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterBefore(accessTokenFilter, UsernamePasswordAuthenticationFilter.class);
+                .addFilterBefore(
+                        serverUpFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                )
+                .addFilterBefore(
+                        accessTokenFilter,
+                        UsernamePasswordAuthenticationFilter.class
+                );
         return http.build();
     }
 
@@ -108,9 +114,7 @@ public class SecurityConfig {
                         "GET",
                         "POST",
                         "PUT",
-                        "PATCH",
-                        "DELETE",
-                        "OPTIONS"
+                        "DELETE"
                 )
         );
         configuration.setAllowedHeaders(List.of(
