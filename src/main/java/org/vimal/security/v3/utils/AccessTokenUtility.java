@@ -58,8 +58,6 @@ public class AccessTokenUtility {
     private final RedisService redisService;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
-    private final ThreadLocal<JsonWebEncryption> jweEncryptor;
-    private final ThreadLocal<JsonWebEncryption> jweDecryptor;
 
     public AccessTokenUtility(PropertiesConfig propertiesConfig,
                               UserRepo userRepo,
@@ -77,20 +75,6 @@ public class AccessTokenUtility {
         this.redisService = redisService;
         this.genericAesRandomEncryptorDecryptor = genericAesRandomEncryptorDecryptor;
         this.genericAesStaticEncryptorDecryptor = genericAesStaticEncryptorDecryptor;
-        this.jweEncryptor = ThreadLocal.withInitial(() -> {
-            JsonWebEncryption jwe = new JsonWebEncryption();
-            jwe.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.A256KW);
-            jwe.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_CBC_HMAC_SHA_512);
-            jwe.setKey(encryptionKey);
-            jwe.setAlgorithmConstraints(ACCESS_TOKEN_KEY_ALGORITHM_CONSTRAINTS);
-            jwe.setContentEncryptionAlgorithmConstraints(ACCESS_TOKEN_ENCRYPTION_ALGORITHM_CONSTRAINTS);
-            return jwe;
-        });
-        this.jweDecryptor = ThreadLocal.withInitial(() -> {
-            JsonWebEncryption jwe = new JsonWebEncryption();
-            jwe.setKey(encryptionKey);
-            return jwe;
-        });
     }
 
     private String generateAccessTokenId(UserModel user) throws Exception {
@@ -138,7 +122,12 @@ public class AccessTokenUtility {
     }
 
     private String encryptToken(String jws) throws JoseException {
-        JsonWebEncryption jwe = jweEncryptor.get();
+        JsonWebEncryption jwe = new JsonWebEncryption();
+        jwe.setAlgorithmHeaderValue(KeyManagementAlgorithmIdentifiers.A256KW);
+        jwe.setEncryptionMethodHeaderParameter(ContentEncryptionAlgorithmIdentifiers.AES_256_CBC_HMAC_SHA_512);
+        jwe.setKey(encryptionKey);
+        jwe.setAlgorithmConstraints(ACCESS_TOKEN_KEY_ALGORITHM_CONSTRAINTS);
+        jwe.setContentEncryptionAlgorithmConstraints(ACCESS_TOKEN_ENCRYPTION_ALGORITHM_CONSTRAINTS);
         jwe.setPayload(jws);
         return jwe.getCompactSerialization();
     }
@@ -201,7 +190,8 @@ public class AccessTokenUtility {
     }
 
     private String decryptToken(String token) throws JoseException {
-        JsonWebEncryption jwe = jweDecryptor.get();
+        JsonWebEncryption jwe = new JsonWebEncryption();
+        jwe.setKey(encryptionKey);
         jwe.setCompactSerialization(token);
         return jwe.getPayload();
     }
