@@ -547,7 +547,10 @@ public class AdminService {
                                                                                boolean hardDelete)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Variant variant = unleash.getVariant(ALLOW_DELETE_USERS.name());
-        if (entryCheck(variant, deleterHighestTopRole)) {
+        if (entryCheck(
+                variant,
+                deleterHighestTopRole
+        )) {
             checkUserCanDeleteUsers(deleterHighestTopRole);
             validateInputsSizeForUsersDeletion(
                     variant,
@@ -1723,6 +1726,11 @@ public class AdminService {
                 throw new ServiceUnavailableException("Force deletion of roles is currently disabled. Please try again later");
             }
         }
+        ValidateInputsForDeleteRolesResultDto validateInputsForDeleteRolesResult = validateInputsForDeleteRoles(
+                roleNames,
+                deleterHighestTopRole,
+                forceDelete
+        );
     }
 
     private void checkUserCanForceDeleteRoles(String deleterHighestTopRole) {
@@ -1737,5 +1745,11 @@ public class AdminService {
                 !unleash.isEnabled(ALLOW_DELETE_ROLES_BY_USERS_HAVE_PERMISSION_TO_DELETE_ROLES.name())) {
             throw new ServiceUnavailableException("Deleting roles is currently disabled. Please try again later");
         }
+    }
+
+    private ValidateInputsForDeleteRolesResultDto validateInputsForDeleteRoles(Set<String> roleNames,
+                                                                               String deleterHighestTopRole,
+                                                                               boolean forceDelete) {
+        Variant variant = unleash.getVariant(ALLOW_DELETE_ROLES.name());
     }
 }
