@@ -89,7 +89,7 @@ public class MapperUtility {
         dto.setRoleName(role.getRoleName());
         dto.setDescription(role.getDescription());
         dto.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(role.getCreatedBy()));
-        dto.setUpdatedBy(genericAesRandomEncryptorDecryptor.decrypt(role.getUpdatedBy()));
+        dto.setUpdatedBy(role.getUpdatedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(role.getUpdatedBy()));
         Set<String> permissions = new HashSet<>();
         for (PermissionModel permission : role.getPermissions()) {
             permissions.add(permission.getPermissionName());
