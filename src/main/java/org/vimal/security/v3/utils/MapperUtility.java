@@ -1,6 +1,5 @@
 package org.vimal.security.v3.utils;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.vimal.security.v3.dtos.RoleSummaryDto;
@@ -13,12 +12,6 @@ import org.vimal.security.v3.models.PermissionModel;
 import org.vimal.security.v3.models.RoleModel;
 import org.vimal.security.v3.models.UserModel;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -28,15 +21,13 @@ public class MapperUtility {
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
-    public UserSummaryDto toUserSummaryDto(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public UserSummaryDto toUserSummaryDto(UserModel user) throws Exception {
         UserSummaryDto dto = new UserSummaryDto();
         mapCommonFields(user, dto);
         return dto;
     }
 
-    public UserSummaryToCompanyUsersDto toUserSummaryToCompanyUsersDto(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public UserSummaryToCompanyUsersDto toUserSummaryToCompanyUsersDto(UserModel user) throws Exception {
         UserSummaryToCompanyUsersDto dto = new UserSummaryToCompanyUsersDto();
         mapCommonFields(user, dto);
         dto.setRealEmail(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()));
@@ -48,7 +39,7 @@ public class MapperUtility {
         return dto;
     }
 
-    private void mapCommonFields(UserModel user, UserSummaryDto dto) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void mapCommonFields(UserModel user, UserSummaryDto dto) throws Exception {
         dto.setId(user.getId());
         dto.setFirstName(user.getFirstName());
         dto.setMiddleName(user.getMiddleName());
@@ -84,7 +75,7 @@ public class MapperUtility {
         dto.setFailedMfaAttempts(user.getFailedMfaAttempts());
     }
 
-    public RoleSummaryDto toRoleSummaryDto(RoleModel role) throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public RoleSummaryDto toRoleSummaryDto(RoleModel role) throws Exception {
         RoleSummaryDto dto = new RoleSummaryDto();
         dto.setRoleName(role.getRoleName());
         dto.setDescription(role.getDescription());

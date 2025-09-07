@@ -1,11 +1,10 @@
 package org.vimal.security.v3.utils;
 
-import javax.crypto.*;
+import javax.crypto.Cipher;
+import javax.crypto.SecretKey;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
@@ -24,8 +23,7 @@ public class AesStaticUtility {
         );
     }
 
-    public String encrypt(String data)
-            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    public String encrypt(String data) throws Exception {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(
                 Cipher.ENCRYPT_MODE,
@@ -36,8 +34,7 @@ public class AesStaticUtility {
                 .encodeToString(cipher.doFinal(data.getBytes(StandardCharsets.UTF_8)));
     }
 
-    public String decrypt(String encryptedData)
-            throws NoSuchPaddingException, NoSuchAlgorithmException, InvalidAlgorithmParameterException, InvalidKeyException, IllegalBlockSizeException, BadPaddingException {
+    public String decrypt(String encryptedData) throws Exception {
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(
                 Cipher.DECRYPT_MODE,
