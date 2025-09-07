@@ -1891,4 +1891,107 @@ public class AdminService {
             }
         }
     }
+
+    public ResponseEntity<Map<String, Object>> readRoles(Set<String> roleNames,
+                                                         String leniency) throws Exception {
+        boolean isLenient = validateLeniency(leniency);
+        UserDetailsImpl reader = getCurrentAuthenticatedUserDetails();
+        String readerHighestTopRole = getUserHighestTopRole(reader);
+        Variant variant = unleash.getVariant(ALLOW_READ_ROLES.name());
+        if (entryCheck(
+                variant,
+                readerHighestTopRole
+        )) {
+            checkUserCanReadRoles(readerHighestTopRole);
+            validateInputsSizeForRolesToRead(
+                    variant,
+                    roleNames
+            );
+            Set<String> invalidInputs = validateInputsForDeleteOrReadRoles(roleNames);
+            Map<String, Object> mapOfErrors = new HashMap<>();
+            if (!invalidInputs.isEmpty()) {
+                mapOfErrors.put("invalid_role_names", invalidInputs);
+            }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (roleNames.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No roles returned"));
+                }
+            } else if (roleNames.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles returned",
+                            "reasons_due_to_which_roles_has_not_been_returned", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No roles returned"));
+                }
+            }
+            List<RoleSummaryDto> roles = new ArrayList<>();
+            for (RoleModel role : roleRepo.findAllById(roleNames)) {
+                roles.add(mapperUtility.toRoleSummaryDto(role));
+                roleNames.remove(role.getRoleName());
+            }
+            if (!roleNames.isEmpty()) {
+                mapOfErrors.put("roles_not_found", roleNames);
+            }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            if (roles.isEmpty()) {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles returned",
+                            "reasons_due_to_which_roles_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("message", "No roles returned"));
+            } else {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "found_roles", roles,
+                            "reasons_due_to_which_some_roles_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("found_roles", roles));
+            }
+        }
+        throw new ServiceUnavailableException("Reading roles is currently disabled. Please try again later");
+    }
+
+    private void checkUserCanReadRoles(String readerHighestTopRole) {
+        if (readerHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_READ_ROLES_BY_USERS_HAVE_PERMISSION_TO_READ_ROLES.name())) {
+            throw new ServiceUnavailableException("Reading roles is currently disabled. Please try again later");
+        }
+    }
+
+    private void validateInputsSizeForRolesToRead(Variant variant,
+                                                  Set<String> roleNames) {
+        if (roleNames.isEmpty()) {
+            throw new SimpleBadRequestException("No roles to read");
+        }
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxRolesToReadAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
+            if (maxRolesToReadAtATime < 1) {
+                maxRolesToReadAtATime = DEFAULT_MAX_ROLES_TO_READ_AT_A_TIME;
+            }
+            if (roleNames.size() > maxRolesToReadAtATime) {
+                throw new SimpleBadRequestException("Cannot read more than " + maxRolesToReadAtATime + " roles at a time");
+            }
+        } else if (roleNames.size() > DEFAULT_MAX_ROLES_TO_READ_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_ROLES_TO_READ_AT_A_TIME + " roles at a time");
+        }
+    }
 }

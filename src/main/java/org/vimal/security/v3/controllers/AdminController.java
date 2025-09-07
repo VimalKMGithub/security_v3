@@ -83,4 +83,14 @@ public class AdminController {
                 leniency
         );
     }
+
+    @GetMapping("/read/roles")
+    @PreAuthorize("@PreAuth.canReadRoles()")
+    public ResponseEntity<Map<String, Object>> readRoles(@RequestBody Set<String> roleNames,
+                                                         @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
+        return adminService.readRoles(
+                roleNames,
+                leniency
+        );
+    }
 }
