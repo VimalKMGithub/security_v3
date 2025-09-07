@@ -65,7 +65,6 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
             if (!existingPermissions.contains(name)) {
                 newPermissions.add(PermissionModel.builder()
                         .permissionName(name)
-                        .systemPermission(true)
                         .createdBy(genericAesRandomEncryptorDecryptor.encrypt("SYSTEM"))
                         .build());
             }

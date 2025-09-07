@@ -2217,4 +2217,122 @@ public class AdminService {
                 removeTokensForRoleNames
         );
     }
+
+    public ResponseEntity<Map<String, Object>> readPermissions(Set<String> permissionNames,
+                                                               String leniency) throws Exception {
+        boolean isLenient = validateLeniency(leniency);
+        UserDetailsImpl reader = getCurrentAuthenticatedUserDetails();
+        String readerHighestTopRole = getUserHighestTopRole(reader);
+        Variant variant = unleash.getVariant(ALLOW_READ_PERMISSIONS.name());
+        if (entryCheck(
+                variant,
+                readerHighestTopRole
+        )) {
+            checkUserCanReadPermissions(readerHighestTopRole);
+            validateInputsSizeForPermissionsToRead(
+                    variant,
+                    permissionNames
+            );
+            Set<String> invalidInputs = new HashSet<>();
+            permissionNames.remove(null);
+            Iterator<String> iterator = permissionNames.iterator();
+            String temp;
+            while (iterator.hasNext()) {
+                temp = iterator.next();
+                try {
+                    validateRoleNameOrPermissionName(
+                            temp,
+                            "Permission name"
+                    );
+                } catch (SimpleBadRequestException ex) {
+                    invalidInputs.add(temp);
+                    iterator.remove();
+                }
+            }
+            Map<String, Object> mapOfErrors = new HashMap<>();
+            if (!invalidInputs.isEmpty()) {
+                mapOfErrors.put("invalid_permission_names", invalidInputs);
+            }
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (permissionNames.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No permissions returned"));
+                }
+            } else if (permissionNames.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No permissions returned",
+                            "reasons_due_to_which_permissions_has_not_been_returned", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No permissions returned"));
+                }
+            }
+            List<PermissionModel> permissions = permissionRepo.findAllById(permissionNames);
+            for (PermissionModel permission : permissions) {
+                permission.setCreatedBy(genericAesRandomEncryptorDecryptor.decrypt(permission.getCreatedBy()));
+                permissionNames.remove(permission.getPermissionName());
+            }
+            if (!permissionNames.isEmpty()) {
+                mapOfErrors.put("permissions_not_found", permissionNames);
+            }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            if (permissions.isEmpty()) {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No permissions returned",
+                            "reasons_due_to_which_permissions_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("message", "No permissions returned"));
+            } else {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "found_permissions", permissions,
+                            "reasons_due_to_which_some_permissions_has_not_been_returned", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("found_permissions", permissions));
+            }
+        }
+        throw new ServiceUnavailableException("Reading permissions is currently disabled. Please try again later");
+    }
+
+    private void checkUserCanReadPermissions(String readerHighestTopRole) {
+        if (readerHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_READ_PERMISSIONS_BY_USERS_HAVE_PERMISSION_TO_READ_PERMISSIONS.name())) {
+            throw new ServiceUnavailableException("Reading permissions is currently disabled. Please try again later");
+        }
+    }
+
+    private void validateInputsSizeForPermissionsToRead(Variant variant,
+                                                        Set<String> permissionNames) {
+        if (permissionNames.isEmpty()) {
+            throw new SimpleBadRequestException("No permissions to read");
+        }
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxPermissionsToReadAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
+            if (maxPermissionsToReadAtATime < 1) {
+                maxPermissionsToReadAtATime = DEFAULT_MAX_PERMISSIONS_TO_READ_AT_A_TIME;
+            }
+            if (permissionNames.size() > maxPermissionsToReadAtATime) {
+                throw new SimpleBadRequestException("Cannot read more than " + maxPermissionsToReadAtATime + " permissions at a time");
+            }
+        } else if (permissionNames.size() > DEFAULT_MAX_PERMISSIONS_TO_READ_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot read more than " + DEFAULT_MAX_PERMISSIONS_TO_READ_AT_A_TIME + " permissions at a time");
+        }
+    }
 }

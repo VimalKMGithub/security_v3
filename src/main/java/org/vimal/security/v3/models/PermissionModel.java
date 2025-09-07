@@ -34,21 +34,10 @@ public class PermissionModel {
             length = 100)
     private String permissionName;
 
-    @Column(name = "description")
-    private String description;
-
-    @Builder.Default
-    @Column(name = "is_system_permission",
-            nullable = false)
-    private boolean systemPermission = false;
-
     @Column(name = "created_at",
             nullable = false,
             updatable = false)
     private Instant createdAt;
-
-    @Column(name = "updated_at")
-    private Instant updatedAt;
 
     @Column(name = "created_by",
             nullable = false,
@@ -56,17 +45,8 @@ public class PermissionModel {
             length = 512)
     private String createdBy;
 
-    @Column(name = "updated_by",
-            length = 512)
-    private String updatedBy;
-
     @PrePersist
     public void recordCreation() {
         this.createdAt = Instant.now();
-    }
-
-    public void recordUpdation(String updator) {
-        this.updatedAt = Instant.now();
-        this.updatedBy = updator;
     }
 }

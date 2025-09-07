@@ -103,4 +103,14 @@ public class AdminController {
                 leniency
         );
     }
+
+    @GetMapping("/read/permissions")
+    @PreAuthorize("@PreAuth.canReadPermissions()")
+    public ResponseEntity<Map<String, Object>> readPermissions(@RequestBody Set<String> permissionNames,
+                                                               @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
+        return adminService.readPermissions(
+                permissionNames,
+                leniency
+        );
+    }
 }
