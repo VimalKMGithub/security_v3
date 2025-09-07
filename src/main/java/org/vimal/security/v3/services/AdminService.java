@@ -992,14 +992,12 @@ public class AdminService {
                 if (!mapOfErrors.isEmpty()) {
                     return ResponseEntity.badRequest()
                             .body(mapOfErrors);
-                } else if (usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
-                        .isEmpty() &&
-                        usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
+                } else if (usersUpdationWithNewDetailsResult.getUpdatedUsers()
+                        .isEmpty()) {
                     return ResponseEntity.ok(Map.of("message", "No users updated"));
                 }
-            } else if (usersUpdationWithNewDetailsResult.getIdsOfUsersWeHaveToRemoveTokens()
-                    .isEmpty() &&
-                    usersUpdationWithNewDetailsResult.getUpdatedUsers().isEmpty()) {
+            } else if (usersUpdationWithNewDetailsResult.getUpdatedUsers()
+                    .isEmpty()) {
                 mapOfErrors.remove("missing_roles");
                 if (!mapOfErrors.isEmpty()) {
                     return ResponseEntity.ok(Map.of(
