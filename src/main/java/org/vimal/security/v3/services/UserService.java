@@ -256,7 +256,7 @@ public class UserService {
         Set<MfaType> methods = user.getMfaMethods();
         methods.add(EMAIL_MFA);
         return ResponseEntity.ok(Map.of(
-                        "message", "Please select a method to receive for password reset",
+                        "message", "Please select a method for password reset",
                         "methods", methods
                 )
         );
@@ -387,7 +387,8 @@ public class UserService {
 
     private Map<String, Object> verifyAuthenticatorAppTotpToResetPassword(UserModel user,
                                                                           ResetPwdDto dto) throws Exception {
-        if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret()),
+        if (!verifyTotp(
+                genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret()),
                 dto.getOtpTotp()
         )) {
             throw new SimpleBadRequestException("Invalid Totp");
@@ -459,7 +460,8 @@ public class UserService {
         UserModel user = getCurrentAuthenticatedUser();
         switch (MfaType.valueOf(method.toUpperCase())) {
             case EMAIL_MFA -> {
-                if (user.getMfaMethods().isEmpty()) {
+                if (user.getMfaMethods()
+                        .isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
                         throw new SimpleBadRequestException("Email Mfa is not enabled");
                     }
@@ -537,7 +539,8 @@ public class UserService {
         switch (MfaType.valueOf(dto.getMethod()
                 .toUpperCase())) {
             case EMAIL_MFA -> {
-                if (user.getMfaMethods().isEmpty()) {
+                if (user.getMfaMethods()
+                        .isEmpty()) {
                     if (!unleash.isEnabled(FORCE_MFA.name())) {
                         throw new SimpleBadRequestException("Email Mfa is not enabled");
                     }
@@ -612,7 +615,10 @@ public class UserService {
         )) {
             throw new SimpleBadRequestException("Invalid Totp");
         }
-        selfChangePassword(user, dto.getPassword());
+        selfChangePassword(
+                user,
+                dto.getPassword()
+        );
         emailConfirmationOnSelfPasswordChange(user);
         return Map.of("message", "Password change successful");
     }
@@ -791,6 +797,7 @@ public class UserService {
             String oldEmail = genericAesStaticEncryptorDecryptor.decrypt(user.getEmail());
             user.setEmail(encryptedNewEmail);
             user.setRealEmail(encryptedNormalizedNewEmail);
+            user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
             accessTokenUtility.revokeTokens(Set.of(user));
             try {
                 redisService.deleteAll(Set.of(
@@ -877,7 +884,8 @@ public class UserService {
             UserModel user = getCurrentAuthenticatedUser();
             switch (MfaType.valueOf(method.toUpperCase())) {
                 case EMAIL_MFA -> {
-                    if (user.getMfaMethods().isEmpty()) {
+                    if (user.getMfaMethods()
+                            .isEmpty()) {
                         if (!unleash.isEnabled(FORCE_MFA.name())) {
                             throw new SimpleBadRequestException("Email Mfa is not enabled");
                         }
@@ -953,7 +961,8 @@ public class UserService {
             UserModel user = getCurrentAuthenticatedUser();
             switch (MfaType.valueOf(method.toUpperCase())) {
                 case EMAIL_MFA -> {
-                    if (user.getMfaMethods().isEmpty()) {
+                    if (user.getMfaMethods()
+                            .isEmpty()) {
                         if (!unleash.isEnabled(FORCE_MFA.name())) {
                             throw new SimpleBadRequestException("Email Mfa is not enabled");
                         }
@@ -1030,7 +1039,10 @@ public class UserService {
     public ResponseEntity<Map<String, Object>> updateDetails(SelfUpdationDto dto) throws Exception {
         UserModel user = userRepo.findById(getCurrentAuthenticatedUser().getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
-        SelfUpdationResultDto selfUpdationResult = validateAndSet(user, dto);
+        SelfUpdationResultDto selfUpdationResult = validateAndSet(
+                user,
+                dto
+        );
         if (!selfUpdationResult.getInvalidInputs()
                 .isEmpty()) {
             return ResponseEntity.badRequest()
