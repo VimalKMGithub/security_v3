@@ -1,6 +1,5 @@
 package org.vimal.security.v3.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import io.getunleash.Unleash;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -18,12 +17,6 @@ import org.vimal.security.v3.utils.AccessTokenUtility;
 import org.vimal.security.v3.utils.MapperUtility;
 import org.vimal.security.v3.utils.UnleashUtility;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.*;
 
 import static org.vimal.security.v3.enums.FeatureFlags.*;
@@ -60,8 +53,7 @@ public class UserService {
     private final GenericAesStaticEncryptorDecryptor genericAesStaticEncryptorDecryptor;
     private final GenericAesRandomEncryptorDecryptor genericAesRandomEncryptorDecryptor;
 
-    public ResponseEntity<Map<String, Object>> register(RegistrationDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> register(RegistrationDto dto) throws Exception {
         if (unleash.isEnabled(REGISTRATION_ENABLED.name())) {
             Set<String> invalidInputs = validateInputs(dto);
             if (!invalidInputs.isEmpty()) {
@@ -110,8 +102,7 @@ public class UserService {
     private UserModel toUserModel(RegistrationDto dto,
                                   String encryptedUsername,
                                   String encryptedEmail,
-                                  String encryptedNormalizedEmail)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                  String encryptedNormalizedEmail) throws Exception {
         return UserModel.builder()
                 .username(encryptedUsername)
                 .email(encryptedEmail)
@@ -124,8 +115,7 @@ public class UserService {
                 .build();
     }
 
-    private String generateEmailVerificationToken(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateEmailVerificationToken(UserModel user) throws Exception {
         String encryptedEmailVerificationTokenKey = getEncryptedEmailVerificationTokenKey(user);
         String existingEncryptedEmailVerificationToken = redisService.get(encryptedEmailVerificationTokenKey);
         if (existingEncryptedEmailVerificationToken != null) {
@@ -153,29 +143,24 @@ public class UserService {
         }
     }
 
-    private String getEncryptedEmailVerificationTokenKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailVerificationTokenKey(UserModel user) throws Exception {
         return getEncryptedEmailVerificationTokenKey(user.getId());
     }
 
-    private String getEncryptedEmailVerificationTokenKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailVerificationTokenKey(UUID userId) throws Exception {
         return getEncryptedEmailVerificationTokenKey(userId.toString());
     }
 
-    private String getEncryptedEmailVerificationTokenKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailVerificationTokenKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_PREFIX + userId);
     }
 
-    public UserSummaryDto getSelfDetails()
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public UserSummaryDto getSelfDetails() throws Exception {
         return mapperUtility.toUserSummaryDto(userRepo.findById(getCurrentAuthenticatedUser().getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user")));
     }
 
-    public Map<String, Object> verifyEmail(String emailVerificationToken)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, Object> verifyEmail(String emailVerificationToken) throws Exception {
         try {
             validateUuid(
                     emailVerificationToken,
@@ -202,13 +187,11 @@ public class UserService {
         );
     }
 
-    private String getEncryptedEmailVerificationTokenMappingKey(String emailVerificationToken)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailVerificationTokenMappingKey(String emailVerificationToken) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_VERIFICATION_TOKEN_MAPPING_PREFIX + emailVerificationToken);
     }
 
-    private String getUserIdFromEncryptedEmailVerificationTokenMappingKey(String encryptedEmailVerificationTokenMappingKey)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getUserIdFromEncryptedEmailVerificationTokenMappingKey(String encryptedEmailVerificationTokenMappingKey) throws Exception {
         String encryptedUserId = redisService.get(encryptedEmailVerificationTokenMappingKey);
         if (encryptedUserId != null) {
             return genericAesRandomEncryptorDecryptor.decrypt(encryptedUserId);
@@ -216,16 +199,14 @@ public class UserService {
         throw new SimpleBadRequestException("Invalid email verification token");
     }
 
-    public Map<String, String> resendEmailVerificationLink(String usernameOrEmail)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> resendEmailVerificationLink(String usernameOrEmail) throws Exception {
         if (unleash.isEnabled(RESEND_REGISTRATION_EMAIL_VERIFICATION.name())) {
             return proceedResendEmailVerificationLink(getUserByUsernameOrEmail(usernameOrEmail));
         }
         throw new ServiceUnavailableException("Resending email verification link is currently disabled. Please try again later");
     }
 
-    private Map<String, String> proceedResendEmailVerificationLink(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> proceedResendEmailVerificationLink(UserModel user) throws Exception {
         if (user.isEmailVerified()) {
             throw new SimpleBadRequestException("Email is already verified");
         }
@@ -238,8 +219,7 @@ public class UserService {
         return Map.of("message", "Email verification link resent successfully. Please check your email");
     }
 
-    private UserModel getUserByUsernameOrEmail(String usernameOrEmail)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private UserModel getUserByUsernameOrEmail(String usernameOrEmail) throws Exception {
         try {
             validateStringIsNonNullAndNotBlank(
                     usernameOrEmail,
@@ -267,8 +247,7 @@ public class UserService {
         return user;
     }
 
-    public ResponseEntity<Map<String, Object>> forgotPassword(String usernameOrEmail)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> forgotPassword(String usernameOrEmail) throws Exception {
         UserModel user = getUserByUsernameOrEmail(usernameOrEmail);
         if (!user.isEmailVerified()) {
             return ResponseEntity.badRequest()
@@ -284,8 +263,7 @@ public class UserService {
     }
 
     public Map<String, String> forgotPasswordMethodSelection(String usernameOrEmail,
-                                                             String method)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                             String method) throws Exception {
         validateTypeExistence(method);
         MfaType methodType = MfaType.valueOf(method.toUpperCase());
         UserModel user = getUserByUsernameOrEmail(usernameOrEmail);
@@ -311,8 +289,7 @@ public class UserService {
         throw new SimpleBadRequestException("Unsupported Mfa type: " + method + ". Supported types: " + MFA_METHODS);
     }
 
-    private String generateOtpForForgotPassword(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateOtpForForgotPassword(UserModel user) throws Exception {
         String otp = generateOtp();
         redisService.save(
                 getEncryptedForgotPasswordOtpKey(user),
@@ -321,23 +298,19 @@ public class UserService {
         return otp;
     }
 
-    private String getEncryptedForgotPasswordOtpKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedForgotPasswordOtpKey(UserModel user) throws Exception {
         return getEncryptedForgotPasswordOtpKey(user.getId());
     }
 
-    private String getEncryptedForgotPasswordOtpKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedForgotPasswordOtpKey(UUID userId) throws Exception {
         return getEncryptedForgotPasswordOtpKey(userId.toString());
     }
 
-    private String getEncryptedForgotPasswordOtpKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedForgotPasswordOtpKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(FORGOT_PASSWORD_OTP_PREFIX + userId);
     }
 
-    public ResponseEntity<Map<String, Object>> resetPassword(ResetPwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> resetPassword(ResetPwdDto dto) throws Exception {
         validateTypeExistence(dto.getMethod());
         Set<String> invalidInputs = validateInputs(dto);
         if (!invalidInputs.isEmpty()) {
@@ -371,8 +344,7 @@ public class UserService {
     }
 
     private Map<String, Object> verifyEmailOtpToResetPassword(UserModel user,
-                                                              ResetPwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                              ResetPwdDto dto) throws Exception {
         String encryptedForgotPasswordOtpKey = getEncryptedForgotPasswordOtpKey(user);
         String encryptedOtp = redisService.get(encryptedForgotPasswordOtpKey);
         if (encryptedOtp != null) {
@@ -396,15 +368,13 @@ public class UserService {
     }
 
     private void selfChangePassword(UserModel user,
-                                    String password)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                    String password) throws Exception {
         user.recordPasswordChange(passwordEncoder.encode(password));
         user.recordUpdation(genericAesRandomEncryptorDecryptor.encrypt("SELF"));
         userRepo.save(user);
     }
 
-    private void emailConfirmationOnPasswordReset(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void emailConfirmationOnPasswordReset(UserModel user) throws Exception {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_PASSWORD_RESET.name())) {
             mailService.sendEmailAsync(
                     genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
@@ -416,8 +386,7 @@ public class UserService {
     }
 
     private Map<String, Object> verifyAuthenticatorAppTotpToResetPassword(UserModel user,
-                                                                          ResetPwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                          ResetPwdDto dto) throws Exception {
         if (!verifyTotp(genericAesRandomEncryptorDecryptor.decrypt(user.getAuthAppSecret()),
                 dto.getOtpTotp()
         )) {
@@ -431,8 +400,7 @@ public class UserService {
         return Map.of("message", "Password reset successful");
     }
 
-    public ResponseEntity<Map<String, Object>> changePassword(ChangePwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> changePassword(ChangePwdDto dto) throws Exception {
         Set<String> invalidInputs = validateInputsPasswordAndConfirmPassword(dto);
         try {
             validatePassword(dto.getOldPassword());
@@ -474,8 +442,7 @@ public class UserService {
         return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
-    private void emailConfirmationOnSelfPasswordChange(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void emailConfirmationOnSelfPasswordChange(UserModel user) throws Exception {
         if (unleash.isEnabled(EMAIL_CONFIRMATION_ON_SELF_PASSWORD_CHANGE.name())) {
             mailService.sendEmailAsync(
                     genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
@@ -486,8 +453,7 @@ public class UserService {
         }
     }
 
-    public Map<String, String> changePasswordMethodSelection(String method)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> changePasswordMethodSelection(String method) throws Exception {
         validateTypeExistence(method);
         unleashUtility.isMfaEnabledGlobally();
         UserModel user = getCurrentAuthenticatedUser();
@@ -520,8 +486,7 @@ public class UserService {
         throw new SimpleBadRequestException("Unsupported Mfa type: " + method + ". Supported types: " + MFA_METHODS);
     }
 
-    private Map<String, String> sendEmailOtpToChangePassword(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> sendEmailOtpToChangePassword(UserModel user) throws Exception {
         mailService.sendEmailAsync(
                 genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                 "Otp for password change",
@@ -531,8 +496,7 @@ public class UserService {
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
     }
 
-    private String generateOtpForPasswordChange(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateOtpForPasswordChange(UserModel user) throws Exception {
         String otp = generateOtp();
         redisService.save(
                 getEncryptedPasswordChangeOtpKey(user),
@@ -541,23 +505,19 @@ public class UserService {
         return otp;
     }
 
-    private String getEncryptedPasswordChangeOtpKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedPasswordChangeOtpKey(UserModel user) throws Exception {
         return getEncryptedPasswordChangeOtpKey(user.getId());
     }
 
-    private String getEncryptedPasswordChangeOtpKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedPasswordChangeOtpKey(UUID userId) throws Exception {
         return getEncryptedPasswordChangeOtpKey(userId.toString());
     }
 
-    private String getEncryptedPasswordChangeOtpKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedPasswordChangeOtpKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_FOR_PASSWORD_CHANGE_PREFIX + userId);
     }
 
-    public ResponseEntity<Map<String, Object>> verifyChangePassword(ChangePwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> verifyChangePassword(ChangePwdDto dto) throws Exception {
         validateTypeExistence(dto.getMethod());
         Set<String> invalidInputs = validateInputsPasswordAndConfirmPassword(dto);
         try {
@@ -617,8 +577,7 @@ public class UserService {
     }
 
     private Map<String, Object> verifyEmailOtpToChangePassword(UserModel user,
-                                                               ChangePwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                               ChangePwdDto dto) throws Exception {
         String encryptedPasswordChangeOtpKey = getEncryptedPasswordChangeOtpKey(user);
         String encryptedOtp = redisService.get(encryptedPasswordChangeOtpKey);
         if (encryptedOtp != null) {
@@ -644,8 +603,7 @@ public class UserService {
     }
 
     private Map<String, Object> verifyAuthenticatorAppTotpToChangePassword(UserModel user,
-                                                                           ChangePwdDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                           ChangePwdDto dto) throws Exception {
         user = userRepo.findById(user.getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
         if (!verifyTotp(
@@ -659,8 +617,7 @@ public class UserService {
         return Map.of("message", "Password change successful");
     }
 
-    public Map<String, String> emailChangeRequest(String newEmail)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> emailChangeRequest(String newEmail) throws Exception {
         if (unleash.isEnabled(EMAIL_CHANGE_ENABLED.name())) {
             validateEmail(newEmail);
             UserModel user = getCurrentAuthenticatedUser();
@@ -701,31 +658,26 @@ public class UserService {
     }
 
     private void storeNewEmailForEmailChange(UserModel user,
-                                             String newEmail)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                             String newEmail) throws Exception {
         redisService.save(
                 getEncryptedNewEmailKey(user),
                 genericAesRandomEncryptorDecryptor.encrypt(newEmail)
         );
     }
 
-    private String getEncryptedNewEmailKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedNewEmailKey(UserModel user) throws Exception {
         return getEncryptedNewEmailKey(user.getId());
     }
 
-    private String getEncryptedNewEmailKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedNewEmailKey(UUID userId) throws Exception {
         return getEncryptedNewEmailKey(userId.toString());
     }
 
-    private String getEncryptedNewEmailKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedNewEmailKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_STORE_PREFIX + userId);
     }
 
-    private String generateOtpForEmailChangeForNewEmail(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateOtpForEmailChangeForNewEmail(UserModel user) throws Exception {
         String otp = generateOtp();
         redisService.save(
                 getEncryptedNewEmailChangeOtpKey(user),
@@ -734,23 +686,19 @@ public class UserService {
         return otp;
     }
 
-    private String getEncryptedNewEmailChangeOtpKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedNewEmailChangeOtpKey(UserModel user) throws Exception {
         return getEncryptedNewEmailChangeOtpKey(user.getId());
     }
 
-    private String getEncryptedNewEmailChangeOtpKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedNewEmailChangeOtpKey(UUID userId) throws Exception {
         return getEncryptedNewEmailChangeOtpKey(userId.toString());
     }
 
-    private String getEncryptedNewEmailChangeOtpKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedNewEmailChangeOtpKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_NEW_EMAIL_PREFIX + userId);
     }
 
-    private String generateOtpForEmailChangeForOldEmail(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateOtpForEmailChangeForOldEmail(UserModel user) throws Exception {
         String otp = generateOtp();
         redisService.save(
                 getEncryptedOldEmailChangeOtpKey(user),
@@ -759,25 +707,21 @@ public class UserService {
         return otp;
     }
 
-    private String getEncryptedOldEmailChangeOtpKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedOldEmailChangeOtpKey(UserModel user) throws Exception {
         return getEncryptedOldEmailChangeOtpKey(user.getId());
     }
 
-    private String getEncryptedOldEmailChangeOtpKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedOldEmailChangeOtpKey(UUID userId) throws Exception {
         return getEncryptedOldEmailChangeOtpKey(userId.toString());
     }
 
-    private String getEncryptedOldEmailChangeOtpKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedOldEmailChangeOtpKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_CHANGE_OTP_FOR_OLD_EMAIL_PREFIX + userId);
     }
 
     public Map<String, Object> verifyEmailChange(String newEmailOtp,
                                                  String oldEmailOtp,
-                                                 String password)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                 String password) throws Exception {
         if (unleash.isEnabled(EMAIL_CHANGE_ENABLED.name())) {
             try {
                 validateOtp(
@@ -873,8 +817,7 @@ public class UserService {
         throw new ServiceUnavailableException("Email change is currently disabled. Please try again later");
     }
 
-    public ResponseEntity<Map<String, Object>> deleteAccount(String password)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> deleteAccount(String password) throws Exception {
         if (unleash.isEnabled(ACCOUNT_DELETION_ALLOWED.name())) {
             try {
                 validatePassword(password);
@@ -910,8 +853,7 @@ public class UserService {
         throw new ServiceUnavailableException("Account deletion is currently disabled. Please try again later");
     }
 
-    private void selfDeleteAccount(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void selfDeleteAccount(UserModel user) throws Exception {
         accessTokenUtility.revokeTokens(Set.of(user));
         user.recordAccountDeletionStatus(
                 true,
@@ -928,8 +870,7 @@ public class UserService {
         }
     }
 
-    public Map<String, String> deleteAccountMethodSelection(String method)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public Map<String, String> deleteAccountMethodSelection(String method) throws Exception {
         if (unleash.isEnabled(ACCOUNT_DELETION_ALLOWED.name())) {
             validateTypeExistence(method);
             unleashUtility.isMfaEnabledGlobally();
@@ -965,8 +906,7 @@ public class UserService {
         throw new ServiceUnavailableException("Account deletion is currently disabled. Please try again later");
     }
 
-    private Map<String, String> sendEmailOtpToDeleteAccount(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private Map<String, String> sendEmailOtpToDeleteAccount(UserModel user) throws Exception {
         mailService.sendEmailAsync(
                 genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()),
                 "Otp for account deletion",
@@ -976,8 +916,7 @@ public class UserService {
         return Map.of("message", "Otp sent to your registered email address. Please check your email to continue");
     }
 
-    private String generateEmailOtpForAccountDeletion(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String generateEmailOtpForAccountDeletion(UserModel user) throws Exception {
         String otp = generateOtp();
         redisService.save(
                 getEncryptedEmailOtpToDeleteAccountKey(user),
@@ -986,24 +925,20 @@ public class UserService {
         return otp;
     }
 
-    private String getEncryptedEmailOtpToDeleteAccountKey(UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailOtpToDeleteAccountKey(UserModel user) throws Exception {
         return getEncryptedEmailOtpToDeleteAccountKey(user.getId());
     }
 
-    private String getEncryptedEmailOtpToDeleteAccountKey(UUID userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailOtpToDeleteAccountKey(UUID userId) throws Exception {
         return getEncryptedEmailOtpToDeleteAccountKey(userId.toString());
     }
 
-    private String getEncryptedEmailOtpToDeleteAccountKey(String userId)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private String getEncryptedEmailOtpToDeleteAccountKey(String userId) throws Exception {
         return genericAesStaticEncryptorDecryptor.encrypt(EMAIL_OTP_TO_DELETE_ACCOUNT_PREFIX + userId);
     }
 
     public Map<String, String> verifyDeleteAccount(String otpTotp,
-                                                   String method)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                   String method) throws Exception {
         if (unleash.isEnabled(ACCOUNT_DELETION_ALLOWED.name())) {
             validateTypeExistence(method);
             try {
@@ -1057,8 +992,7 @@ public class UserService {
     }
 
     private Map<String, String> verifyEmailOtpToDeleteAccount(String otp,
-                                                              UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                              UserModel user) throws Exception {
         String encryptedEmailOtpToDeleteAccountKey = getEncryptedEmailOtpToDeleteAccountKey(user);
         String encryptedOtp = redisService.get(encryptedEmailOtpToDeleteAccountKey);
         if (encryptedOtp != null) {
@@ -1080,8 +1014,7 @@ public class UserService {
     }
 
     private Map<String, String> verifyAuthenticatorAppTOTPToDeleteAccount(String totp,
-                                                                          UserModel user)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                                          UserModel user) throws Exception {
         user = userRepo.findById(user.getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
         if (!verifyTotp(
@@ -1094,8 +1027,7 @@ public class UserService {
         return Map.of("message", "Account deleted successfully");
     }
 
-    public ResponseEntity<Map<String, Object>> updateDetails(SelfUpdationDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public ResponseEntity<Map<String, Object>> updateDetails(SelfUpdationDto dto) throws Exception {
         UserModel user = userRepo.findById(getCurrentAuthenticatedUser().getId())
                 .orElseThrow(() -> new SimpleBadRequestException("Invalid user"));
         SelfUpdationResultDto selfUpdationResult = validateAndSet(user, dto);
@@ -1128,8 +1060,7 @@ public class UserService {
     }
 
     private SelfUpdationResultDto validateAndSet(UserModel user,
-                                                 SelfUpdationDto dto)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+                                                 SelfUpdationDto dto) throws Exception {
         boolean isModified = false;
         boolean shouldRemoveTokens = false;
         Set<String> invalidInputs = new HashSet<>();
