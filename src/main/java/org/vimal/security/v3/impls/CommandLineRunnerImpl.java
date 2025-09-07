@@ -1,6 +1,5 @@
 package org.vimal.security.v3.impls;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
@@ -21,12 +20,6 @@ import org.vimal.security.v3.repos.PermissionRepo;
 import org.vimal.security.v3.repos.RoleRepo;
 import org.vimal.security.v3.repos.UserRepo;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -50,8 +43,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
 
     @Override
     @Transactional(propagation = Propagation.REQUIRES_NEW)
-    public void run(String... args)
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    public void run(String... args) throws Exception {
         log.info("Initializing system permissions, roles, and default users.");
         initializeSystemPermissionsIfAbsent();
         initializeSystemRolesIfAbsent();
@@ -59,8 +51,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         log.info("System permissions, roles, and default users initialized successfully.");
     }
 
-    private void initializeSystemPermissionsIfAbsent()
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void initializeSystemPermissionsIfAbsent() throws Exception {
         Set<String> permissionNames = new HashSet<>();
         for (SystemPermissions permission : SystemPermissions.values()) {
             permissionNames.add(permission.name());
@@ -84,8 +75,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         }
     }
 
-    private void initializeSystemRolesIfAbsent()
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void initializeSystemRolesIfAbsent() throws Exception {
         Set<String> roleNames = new HashSet<>();
         Map<String, Set<String>> rolePermissionsMap = new HashMap<>();
         for (SystemRoles role : SystemRoles.values()) {
@@ -155,8 +145,7 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         );
     }
 
-    private void initializeDefaultUsersIfAbsent()
-            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+    private void initializeDefaultUsersIfAbsent() throws Exception {
         Set<SystemUserDto> systemUsers = Set.of(
                 new SystemUserDto(
                         propertiesConfig.getGodUserUsername(),
