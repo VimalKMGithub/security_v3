@@ -1450,10 +1450,7 @@ public class AdminService {
                     variant,
                     dtos
             );
-            ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationResult = validateInputsForRolesCreationOrUpdation(
-                    dtos,
-                    true
-            );
+            ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationResult = validateInputsForRolesCreationOrUpdation(dtos);
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForRolesCreationResult);
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
@@ -1578,8 +1575,7 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationOrUpdation(Set<RoleCreationDto> dtos,
-                                                                                                       boolean creating) {
+    private ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationOrUpdation(Set<RoleCreationDto> dtos) {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> roleNames = new HashSet<>();
         Set<String> duplicateRoleNamesInDtos = new HashSet<>();
@@ -1601,11 +1597,7 @@ public class AdminService {
                     removeFromDtos = true;
                 }
             } catch (SimpleBadRequestException ex) {
-                if (creating) {
-                    invalidInputs.add(ex.getMessage());
-                } else {
-                    invalidInputs.add(tempDto.getRoleName());
-                }
+                invalidInputs.add(ex.getMessage());
                 removeFromDtos = true;
             }
             if (tempDto.getDescription() != null
@@ -2019,10 +2011,7 @@ public class AdminService {
                     variant,
                     dtos
             );
-            ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesUpdationResult = validateInputsForRolesCreationOrUpdation(
-                    dtos,
-                    false
-            );
+            ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesUpdationResult = validateInputsForRolesCreationOrUpdation(dtos);
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForRolesUpdationResult);
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
