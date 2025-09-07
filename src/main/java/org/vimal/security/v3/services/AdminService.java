@@ -1742,7 +1742,8 @@ public class AdminService {
 
     private ValidateInputsForDeleteRolesResultDto validateInputsForDeleteRoles(Set<String> roleNames,
                                                                                String deleterHighestTopRole,
-                                                                               boolean forceDelete) {
+                                                                               boolean forceDelete)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Variant variant = unleash.getVariant(ALLOW_DELETE_ROLES.name());
         if (entryCheck(
                 variant,
@@ -1819,22 +1820,64 @@ public class AdminService {
 
     private ValidateInputsForDeleteRolesResultDto getRolesDeletionResult(Set<String> roleNames,
                                                                          boolean forceDelete,
-                                                                         Map<String, Object> mapOfErrors) {
+                                                                         Map<String, Object> mapOfErrors)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         Set<String> systemRoleNames = new HashSet<>();
         Set<RoleModel> rolesToDelete = new HashSet<>();
         Set<UUID> idsOfUsersWeHaveToRemoveTokens = new HashSet<>();
+        Set<String> roleNamesThatIsAssignedToUsers = new HashSet<>();
         for (RoleModel role : roleRepo.findAllById(roleNames)) {
             roleNames.remove(role.getRoleName());
             if (role.isSystemRole()) {
                 systemRoleNames.add(role.getRoleName());
             } else {
-                rolesToDelete.add(role);
+                roleDeletionResult(
+                        role,
+                        forceDelete,
+                        idsOfUsersWeHaveToRemoveTokens,
+                        roleNamesThatIsAssignedToUsers,
+                        rolesToDelete
+                );
             }
         }
+        if (!roleNames.isEmpty()) {
+            mapOfErrors.put("roles_not_found", roleNames);
+        }
+        if (!systemRoleNames.isEmpty()) {
+            mapOfErrors.put("system_roles_cannot_be_deleted", systemRoleNames);
+        }
+        if (forceDelete) {
+            if (!roleNamesThatIsAssignedToUsers.isEmpty()) {
+                roleRepo.deleteUserRolesByRoleNames(roleNamesThatIsAssignedToUsers);
+                accessTokenUtility.revokeTokensByUsersIds(idsOfUsersWeHaveToRemoveTokens);
+            }
+        } else {
+            if (!roleNamesThatIsAssignedToUsers.isEmpty()) {
+                mapOfErrors.put("roles_assigned_to_users", roleNamesThatIsAssignedToUsers);
+            }
+        }
+        return new ValidateInputsForDeleteRolesResultDto(
+                mapOfErrors,
+                rolesToDelete
+        );
     }
 
-    private boolean roleDeletionResult(RoleModel role,
-                                       boolean forceDelete,
-                                       Set<UUID> idsOfUsersWeHaveToRemoveTokens) {
+    private void roleDeletionResult(RoleModel role,
+                                    boolean forceDelete,
+                                    Set<UUID> idsOfUsersWeHaveToRemoveTokens,
+                                    Set<String> roleNamesThatIsAssignedToUsers,
+                                    Set<RoleModel> rolesToDelete) {
+        Set<UUID> userIdsOfUsersHavingThisRole = roleRepo.findUserIdsByRoleNames(Set.of(role.getRoleName()));
+        if (userIdsOfUsersHavingThisRole.isEmpty()) {
+            rolesToDelete.add(role);
+        } else {
+            if (forceDelete) {
+                idsOfUsersWeHaveToRemoveTokens.addAll(userIdsOfUsersHavingThisRole);
+                roleNamesThatIsAssignedToUsers.add(role.getRoleName());
+                rolesToDelete.add(role);
+            } else {
+                roleNamesThatIsAssignedToUsers.add(role.getRoleName());
+            }
+        }
     }
 }
