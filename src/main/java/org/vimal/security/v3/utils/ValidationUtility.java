@@ -112,6 +112,18 @@ public final class ValidationUtility {
         }
     }
 
+    public static void validateRoleNameOrPermissionName(String name,
+                                                        String fieldName) {
+        validateStringIsNonNullAndNotBlank(
+                name,
+                fieldName
+        );
+        if (!ROLE_AND_PERMISSION_NAME_PATTERN.matcher(name)
+                .matches()) {
+            throw new SimpleBadRequestException(fieldName + ": '" + name + "' is invalid as it can only contain letters, digits, and underscores");
+        }
+    }
+
     public static void validateFirstName(String firstName) {
         validateStringIsNonNullAndNotBlank(
                 firstName,

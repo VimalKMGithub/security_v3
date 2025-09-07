@@ -14,6 +14,7 @@ import org.vimal.security.v3.encryptordecryptors.GenericAesStaticEncryptorDecryp
 import org.vimal.security.v3.exceptions.ServiceUnavailableException;
 import org.vimal.security.v3.exceptions.SimpleBadRequestException;
 import org.vimal.security.v3.impls.UserDetailsImpl;
+import org.vimal.security.v3.models.PermissionModel;
 import org.vimal.security.v3.models.RoleModel;
 import org.vimal.security.v3.models.UserModel;
 import org.vimal.security.v3.repos.PermissionRepo;
@@ -322,12 +323,9 @@ public class AdminService {
                 removeFromDtosSanitizeRoles = sanitizeRoles(
                         tempDto.getRoles(),
                         restrictedRoles,
-                        creatorHighestTopRole
+                        creatorHighestTopRole,
+                        roles
                 );
-                if (!tempDto.getRoles()
-                        .isEmpty()) {
-                    roles.addAll(tempDto.getRoles());
-                }
             }
             if (removeFromDtos ||
                     removeFromDtosSanitizeRoles) {
@@ -351,7 +349,8 @@ public class AdminService {
 
     private boolean sanitizeRoles(Set<String> roles,
                                   Set<String> restrictedRoles,
-                                  String userHighestTopRole) {
+                                  String userHighestTopRole,
+                                  Set<String> rolesCollector) {
         roles.remove(null);
         Iterator<String> iterator = roles.iterator();
         boolean removeFromDtos = false;
@@ -361,6 +360,7 @@ public class AdminService {
             if (temp.isBlank()) {
                 iterator.remove();
             } else {
+                rolesCollector.add(temp);
                 removeFromDtos = validateRoleRestriction(
                         temp,
                         restrictedRoles,
@@ -409,8 +409,7 @@ public class AdminService {
     }
 
     private Map<String, RoleModel> resolveRoles(Set<String> roles) {
-        if (roles == null ||
-                roles.isEmpty()) {
+        if (roles.isEmpty()) {
             return new HashMap<>();
         }
         Map<String, RoleModel> resolvedRolesMap = new HashMap<>();
@@ -1192,12 +1191,9 @@ public class AdminService {
                 removeFromDtosSanitizeRoles = sanitizeRoles(
                         tempDto.getRoles(),
                         restrictedRoles,
-                        updaterHighestTopRole
+                        updaterHighestTopRole,
+                        roles
                 );
-                if (!tempDto.getRoles()
-                        .isEmpty()) {
-                    roles.addAll(tempDto.getRoles());
-                }
             }
             if (tempDto.getFirstName() != null) {
                 try {
@@ -1447,5 +1443,260 @@ public class AdminService {
                 updatedUsers,
                 idsOfUsersWeHaveToRemoveTokens
         );
+    }
+
+    public ResponseEntity<Map<String, Object>> createRoles(Set<RoleCreationDto> dtos,
+                                                           String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        boolean isLenient = validateLeniency(leniency);
+        UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
+        String creatorHighestTopRole = getUserHighestTopRole(creator);
+        Variant variant = unleash.getVariant(ALLOW_CREATE_ROLES.name());
+        if (entryCheck(
+                variant,
+                creatorHighestTopRole
+        )) {
+            checkUserCanCreateRoles(creatorHighestTopRole);
+            validateDtosSizeForRolesCreation(
+                    variant,
+                    dtos
+            );
+            ValidateInputsForRolesCreationResultDto validateInputsForRolesCreationResult = validateInputsForRolesCreation(dtos);
+            Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForRolesCreationResult);
+            if (!isLenient) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.badRequest()
+                            .body(mapOfErrors);
+                } else if (dtos.isEmpty()) {
+                    return ResponseEntity.ok(Map.of("message", "No roles created"));
+                }
+            } else if (dtos.isEmpty()) {
+                if (!mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles created",
+                            "reasons_due_to_which_roles_has_not_been_created", mapOfErrors
+                    ));
+                } else {
+                    return ResponseEntity.ok(Map.of("message", "No roles created"));
+                }
+            }
+            Set<String> alreadyTakenRoleNames = getAlreadyTakenRoleNames(validateInputsForRolesCreationResult.getRoleNames());
+            if (!alreadyTakenRoleNames.isEmpty()) {
+                mapOfErrors.put("role_names_already_taken", alreadyTakenRoleNames);
+            }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            Map<String, PermissionModel> resolvedPermissionsMap = resolvePermissions(validateInputsForRolesCreationResult.getPermissions());
+            if (!validateInputsForRolesCreationResult.getPermissions()
+                    .isEmpty()) {
+                mapOfErrors.put("missing_permissions", validateInputsForRolesCreationResult.getPermissions());
+            }
+            if (!isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.badRequest()
+                        .body(mapOfErrors);
+            }
+            Set<RoleModel> newRoles = new HashSet<>();
+            String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(creator.getUsername());
+            for (RoleCreationDto dto : dtos) {
+                if (alreadyTakenRoleNames.contains(dto.getRoleName())) {
+                    continue;
+                }
+                if (dto.getPermissions() == null ||
+                        dto.getPermissions().isEmpty()) {
+                    newRoles.add(toRoleModel(
+                                    dto,
+                                    new HashSet<>(),
+                                    decryptedCreatorUsername
+                            )
+                    );
+                } else {
+                    Set<PermissionModel> permissionsToAssign = new HashSet<>();
+                    for (String permissionName : dto.getPermissions()) {
+                        PermissionModel permission = resolvedPermissionsMap.get(permissionName);
+                        if (permission != null) {
+                            permissionsToAssign.add(permission);
+                        }
+                    }
+                    newRoles.add(toRoleModel(
+                                    dto,
+                                    permissionsToAssign,
+                                    decryptedCreatorUsername
+                            )
+                    );
+                }
+            }
+            mapOfErrors.remove("missing_permissions");
+            if (newRoles.isEmpty()) {
+                if (isLenient &&
+                        !mapOfErrors.isEmpty()) {
+                    return ResponseEntity.ok(Map.of(
+                            "message", "No roles created",
+                            "reasons_due_to_which_roles_has_not_been_created", mapOfErrors
+                    ));
+                }
+                return ResponseEntity.ok(Map.of("message", "No roles created"));
+            }
+            List<RoleSummaryDto> roles = new ArrayList<>();
+            for (RoleModel role : roleRepo.saveAll(newRoles)) {
+                roles.add(mapperUtility.toRoleSummaryDto(role));
+            }
+            if (isLenient &&
+                    !mapOfErrors.isEmpty()) {
+                return ResponseEntity.ok(Map.of(
+                        "created_roles", roles,
+                        "reasons_due_to_which_some_roles_has_not_been_created", mapOfErrors
+                ));
+            }
+            return ResponseEntity.ok(Map.of("created_roles", roles));
+        }
+        throw new ServiceUnavailableException("Creating roles is currently disabled. Please try again later");
+    }
+
+    private void checkUserCanCreateRoles(String creatorHighestTopRole) {
+        if (creatorHighestTopRole == null &&
+                !unleash.isEnabled(ALLOW_CREATE_ROLES_BY_USERS_HAVE_PERMISSION_TO_CREATE_ROLES.name())) {
+            throw new ServiceUnavailableException("Creating roles is currently disabled. Please try again later");
+        }
+    }
+
+    private void validateDtosSizeForRolesCreation(Variant variant,
+                                                  Set<RoleCreationDto> dtos) {
+        if (dtos.isEmpty()) {
+            throw new SimpleBadRequestException("No roles to create");
+        }
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxRolesToCreateAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
+            if (maxRolesToCreateAtATime < 1) {
+                maxRolesToCreateAtATime = DEFAULT_MAX_ROLES_TO_CREATE_AT_A_TIME;
+            }
+            if (dtos.size() > maxRolesToCreateAtATime) {
+                throw new SimpleBadRequestException("Cannot create more than " + maxRolesToCreateAtATime + " roles at a time");
+            }
+        } else if (dtos.size() > DEFAULT_MAX_ROLES_TO_CREATE_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot create more than " + DEFAULT_MAX_ROLES_TO_CREATE_AT_A_TIME + " roles at a time");
+        }
+    }
+
+    private ValidateInputsForRolesCreationResultDto validateInputsForRolesCreation(Set<RoleCreationDto> dtos) {
+        Set<String> invalidInputs = new HashSet<>();
+        Set<String> roleNames = new HashSet<>();
+        Set<String> duplicateRoleNamesInDtos = new HashSet<>();
+        Set<String> permissions = new HashSet<>();
+        dtos.remove(null);
+        Iterator<RoleCreationDto> iterator = dtos.iterator();
+        boolean removeFromDtos;
+        RoleCreationDto tempDto;
+        while (iterator.hasNext()) {
+            removeFromDtos = false;
+            tempDto = iterator.next();
+            try {
+                validateRoleNameOrPermissionName(
+                        tempDto.getRoleName(),
+                        "Role name"
+                );
+                if (!roleNames.add(tempDto.getRoleName())) {
+                    duplicateRoleNamesInDtos.add(tempDto.getRoleName());
+                    removeFromDtos = true;
+                }
+            } catch (SimpleBadRequestException ex) {
+                invalidInputs.add(ex.getMessage());
+                removeFromDtos = true;
+            }
+            if (tempDto.getDescription() != null
+                    && tempDto.getDescription().length() > 255) {
+                invalidInputs.add("Description must be at most 255 characters long");
+                removeFromDtos = true;
+            }
+            if (tempDto.getPermissions() != null &&
+                    !tempDto.getPermissions().isEmpty()) {
+                sanitizePermissionNames(
+                        tempDto.getPermissions(),
+                        permissions
+                );
+            }
+            if (removeFromDtos) {
+                iterator.remove();
+            }
+        }
+        return new ValidateInputsForRolesCreationResultDto(
+                invalidInputs,
+                roleNames,
+                duplicateRoleNamesInDtos,
+                permissions
+        );
+    }
+
+    private void sanitizePermissionNames(Set<String> permissionNames,
+                                         Set<String> permissionsCollector) {
+        permissionNames.remove(null);
+        Iterator<String> iterator = permissionNames.iterator();
+        String temp;
+        while (iterator.hasNext()) {
+            temp = iterator.next();
+            if (temp.isBlank()) {
+                iterator.remove();
+            } else {
+                permissionsCollector.add(temp);
+            }
+        }
+    }
+
+    private Map<String, Object> errorsStuffingIfAny(ValidateInputsForRolesCreationResultDto validateInputsForRolesCreationResult) {
+        Map<String, Object> mapOfErrors = new HashMap<>();
+        if (!validateInputsForRolesCreationResult.getInvalidInputs()
+                .isEmpty()) {
+            mapOfErrors.put("invalid_inputs", validateInputsForRolesCreationResult.getInvalidInputs());
+        }
+        if (!validateInputsForRolesCreationResult.getDuplicateRoleNamesInDtos()
+                .isEmpty()) {
+            mapOfErrors.put("duplicate_role_names_in_request", validateInputsForRolesCreationResult.getDuplicateRoleNamesInDtos());
+        }
+        return mapOfErrors;
+    }
+
+    private Set<String> getAlreadyTakenRoleNames(Set<String> roleNames) {
+        Set<String> alreadyTakenRoleNames = new HashSet<>();
+        if (!roleNames.isEmpty()) {
+            for (RoleModel role : roleRepo.findAllById(roleNames)) {
+                alreadyTakenRoleNames.add(role.getRoleName());
+            }
+        }
+        return alreadyTakenRoleNames;
+    }
+
+    private Map<String, PermissionModel> resolvePermissions(Set<String> permissions) {
+        if (permissions.isEmpty()) {
+            return new HashMap<>();
+        }
+        Map<String, PermissionModel> resolvedRolesMap = new HashMap<>();
+        for (PermissionModel permission : permissionRepo.findAllById(permissions)) {
+            permissions.remove(permission.getPermissionName());
+            resolvedRolesMap.put(
+                    permission.getPermissionName(),
+                    permission
+            );
+        }
+        return resolvedRolesMap;
+    }
+
+    private RoleModel toRoleModel(RoleCreationDto dto,
+                                  Set<PermissionModel> permissions,
+                                  String creator)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return RoleModel.builder()
+                .roleName(dto.getRoleName())
+                .description(dto.getDescription())
+                .permissions(permissions)
+                .createdBy(genericAesRandomEncryptorDecryptor.encrypt(creator))
+                .build();
     }
 }

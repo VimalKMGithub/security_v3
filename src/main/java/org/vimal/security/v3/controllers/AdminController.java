@@ -5,6 +5,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.vimal.security.v3.dtos.RoleCreationDto;
 import org.vimal.security.v3.dtos.UserCreationDto;
 import org.vimal.security.v3.dtos.UserUpdationDto;
 import org.vimal.security.v3.services.AdminService;
@@ -67,6 +68,17 @@ public class AdminController {
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
             throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
         return adminService.updateUsers(
+                dtos,
+                leniency
+        );
+    }
+
+    @PostMapping("/create/roles")
+    @PreAuthorize("@PreAuth.canCreateRoles()")
+    public ResponseEntity<Map<String, Object>> createRoles(@RequestBody Set<RoleCreationDto> dtos,
+                                                           @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency)
+            throws InvalidAlgorithmParameterException, NoSuchPaddingException, IllegalBlockSizeException, NoSuchAlgorithmException, BadPaddingException, InvalidKeyException, JsonProcessingException {
+        return adminService.createRoles(
                 dtos,
                 leniency
         );
