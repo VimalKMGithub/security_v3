@@ -19,12 +19,6 @@ public interface RoleRepo extends JpaRepository<RoleModel, String> {
             nativeQuery = true)
     void deleteUserRolesByRoleNames(Set<String> roleNames);
 
-    @Query(value = "SELECT COUNT(DISTINCT user_id)" +
-            " FROM user_roles" +
-            " WHERE role_name IN (:roleNames)",
-            nativeQuery = true)
-    long countUsersByRoleNames(Set<String> roleNames);
-
     @Query(value = "SELECT DISTINCT user_id" +
             " FROM user_roles" +
             " WHERE role_name IN (:roleNames)",

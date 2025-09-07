@@ -118,6 +118,9 @@ public final class ValidationUtility {
                 name,
                 fieldName
         );
+        if (name.length() > 100) {
+            throw new SimpleBadRequestException(fieldName + " must be at most 100 characters long");
+        }
         if (!ROLE_AND_PERMISSION_NAME_PATTERN.matcher(name)
                 .matches()) {
             throw new SimpleBadRequestException(fieldName + ": '" + name + "' is invalid as it can only contain letters, digits, and underscores");

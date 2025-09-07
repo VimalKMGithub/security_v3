@@ -1740,6 +1740,33 @@ public class AdminService {
         }
     }
 
+    private ValidateInputsForDeleteRolesResultDto validateInputsForDeleteRoles(Set<String> roleNames,
+                                                                               String deleterHighestTopRole,
+                                                                               boolean forceDelete) {
+        Variant variant = unleash.getVariant(ALLOW_DELETE_ROLES.name());
+        if (entryCheck(
+                variant,
+                deleterHighestTopRole
+        )) {
+            checkUserCanDeleteRoles(deleterHighestTopRole);
+            validateInputsSizeForRolesToDelete(
+                    variant,
+                    roleNames
+            );
+            Set<String> invalidInputs = validateInputsForDeleteOrReadRoles(roleNames);
+            Map<String, Object> mapOfErrors = new HashMap<>();
+            if (!invalidInputs.isEmpty()) {
+                mapOfErrors.put("invalid_role_names", invalidInputs);
+            }
+            return getRolesDeletionResult(
+                    roleNames,
+                    forceDelete,
+                    mapOfErrors
+            );
+        }
+        throw new ServiceUnavailableException("Deletion of roles is currently disabled. Please try again later");
+    }
+
     private void checkUserCanDeleteRoles(String deleterHighestTopRole) {
         if (deleterHighestTopRole == null &&
                 !unleash.isEnabled(ALLOW_DELETE_ROLES_BY_USERS_HAVE_PERMISSION_TO_DELETE_ROLES.name())) {
@@ -1747,9 +1774,67 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForDeleteRolesResultDto validateInputsForDeleteRoles(Set<String> roleNames,
-                                                                               String deleterHighestTopRole,
-                                                                               boolean forceDelete) {
-        Variant variant = unleash.getVariant(ALLOW_DELETE_ROLES.name());
+    private void validateInputsSizeForRolesToDelete(Variant variant,
+                                                    Set<String> roleNames) {
+        if (roleNames.isEmpty()) {
+            throw new SimpleBadRequestException("No roles to delete");
+        }
+        if (variant.isEnabled() &&
+                variant.getPayload().isPresent()) {
+            int maxRolesToDeleteAtATime = Integer.parseInt(Objects.requireNonNull(variant.getPayload()
+                            .get()
+                            .getValue()
+                    )
+            );
+            if (maxRolesToDeleteAtATime < 1) {
+                maxRolesToDeleteAtATime = DEFAULT_MAX_ROLES_TO_DELETE_AT_A_TIME;
+            }
+            if (roleNames.size() > maxRolesToDeleteAtATime) {
+                throw new SimpleBadRequestException("Cannot delete more than " + maxRolesToDeleteAtATime + " roles at a time");
+            }
+        } else if (roleNames.size() > DEFAULT_MAX_ROLES_TO_DELETE_AT_A_TIME) {
+            throw new SimpleBadRequestException("Cannot delete more than " + DEFAULT_MAX_ROLES_TO_DELETE_AT_A_TIME + " roles at a time");
+        }
+    }
+
+    private Set<String> validateInputsForDeleteOrReadRoles(Set<String> roleNames) {
+        Set<String> invalidInputs = new HashSet<>();
+        roleNames.remove(null);
+        Iterator<String> iterator = roleNames.iterator();
+        String temp;
+        while (iterator.hasNext()) {
+            temp = iterator.next();
+            try {
+                validateRoleNameOrPermissionName(
+                        temp,
+                        "Role name"
+                );
+            } catch (SimpleBadRequestException ex) {
+                invalidInputs.add(temp);
+                iterator.remove();
+            }
+        }
+        return invalidInputs;
+    }
+
+    private ValidateInputsForDeleteRolesResultDto getRolesDeletionResult(Set<String> roleNames,
+                                                                         boolean forceDelete,
+                                                                         Map<String, Object> mapOfErrors) {
+        Set<String> systemRoleNames = new HashSet<>();
+        Set<RoleModel> rolesToDelete = new HashSet<>();
+        Set<UUID> idsOfUsersWeHaveToRemoveTokens = new HashSet<>();
+        for (RoleModel role : roleRepo.findAllById(roleNames)) {
+            roleNames.remove(role.getRoleName());
+            if (role.isSystemRole()) {
+                systemRoleNames.add(role.getRoleName());
+            } else {
+                rolesToDelete.add(role);
+            }
+        }
+    }
+
+    private boolean roleDeletionResult(RoleModel role,
+                                       boolean forceDelete,
+                                       Set<UUID> idsOfUsersWeHaveToRemoveTokens) {
     }
 }
