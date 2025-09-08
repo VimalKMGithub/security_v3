@@ -16,7 +16,7 @@ public final class TotpUtility {
     }
 
     private static final TimeBasedOneTimePasswordGenerator TOTP_GENERATOR = new TimeBasedOneTimePasswordGenerator();
-    private static final Base32 BASE_32 = new Base32();
+    private static final ThreadLocal<Base32> BASE_32 = ThreadLocal.withInitial(Base32::new);
     private static final ThreadLocal<KeyGenerator> KEY_GENERATOR = ThreadLocal.withInitial(() -> {
         try {
             KeyGenerator keyGen = KeyGenerator.getInstance(TOTP_GENERATOR.getAlgorithm());
@@ -28,7 +28,8 @@ public final class TotpUtility {
     });
 
     public static String generateBase32Secret() {
-        return BASE_32.encodeToString(KEY_GENERATOR.get()
+        return BASE_32.get()
+                .encodeToString(KEY_GENERATOR.get()
                         .generateKey()
                         .getEncoded())
                 .replace(
@@ -58,7 +59,8 @@ public final class TotpUtility {
 
     private static String generateTotp(String base32Secret) throws InvalidKeyException {
         return TOTP_GENERATOR.generateOneTimePasswordString(new SecretKeySpec(
-                        BASE_32.decode(base32Secret),
+                        BASE_32.get()
+                                .decode(base32Secret),
                         TOTP_GENERATOR.getAlgorithm()
                 ),
                 Instant.now()
