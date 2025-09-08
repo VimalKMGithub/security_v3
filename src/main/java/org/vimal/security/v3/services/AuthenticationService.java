@@ -311,7 +311,7 @@ public class AuthenticationService {
     private byte[] generateQrCodeForAuthenticatorApp(UserModel user) throws Exception {
         return generateQrCode(generateTotpUrl(
                         "God Level Security",
-                        user.getUsername(),
+                        genericAesStaticEncryptorDecryptor.decrypt(user.getUsername()),
                         generateAuthenticatorAppSecret(user)
                 )
         );
