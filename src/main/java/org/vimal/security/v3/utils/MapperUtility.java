@@ -39,7 +39,8 @@ public class MapperUtility {
         return dto;
     }
 
-    private void mapCommonFields(UserModel user, UserSummaryDto dto) throws Exception {
+    private void mapCommonFields(UserModel user,
+                                 UserSummaryDto dto) throws Exception {
         dto.setId(user.getId());
         dto.setFirstName(user.getFirstName());
         dto.setMiddleName(user.getMiddleName());
