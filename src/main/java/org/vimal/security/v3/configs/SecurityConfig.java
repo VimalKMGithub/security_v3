@@ -53,24 +53,33 @@ public class SecurityConfig {
 
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        http.cors(cors -> cors
+                        .configurationSource(corsConfigurationSource())
+                )
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+                .sessionManagement(sm -> sm
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                )
                 .authorizeHttpRequests(
-                        auth -> auth.requestMatchers(ALLOWED_API_ENDPOINT_WITHOUT_AUTHENTICATION)
+                        auth -> auth
+                                .requestMatchers(ALLOWED_API_ENDPOINT_WITHOUT_AUTHENTICATION)
                                 .permitAll()
                                 .anyRequest()
                                 .authenticated()
                 )
-                .headers(headers -> headers.contentSecurityPolicy(csp -> csp
-                                .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'"))
-                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
-                        .httpStrictTransportSecurity(
-                                hsts -> hsts.includeSubDomains(true)
-                                        .preload(true)
-                                        .maxAgeInSeconds(63072000)
+                .headers(headers -> headers
+                        .contentSecurityPolicy(csp -> csp
+                                .policyDirectives("default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'")
                         )
-                        .xssProtection(xss -> xss.headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK))
+                        .frameOptions(HeadersConfigurer.FrameOptionsConfig::sameOrigin)
+                        .httpStrictTransportSecurity(hsts -> hsts
+                                .includeSubDomains(true)
+                                .preload(true)
+                                .maxAgeInSeconds(63072000)
+                        )
+                        .xssProtection(xss -> xss
+                                .headerValue(XXssProtectionHeaderWriter.HeaderValue.ENABLED_MODE_BLOCK)
+                        )
                         .referrerPolicy(referrer -> referrer
                                 .policy(ReferrerPolicyHeaderWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
                         )
@@ -91,7 +100,8 @@ public class SecurityConfig {
                                                        PasswordEncoder passwordEncoder,
                                                        UserDetailsService userDetailsService) throws Exception {
         AuthenticationManagerBuilder builder = http.getSharedObject(AuthenticationManagerBuilder.class);
-        builder.userDetailsService(userDetailsService).passwordEncoder(passwordEncoder);
+        builder.userDetailsService(userDetailsService)
+                .passwordEncoder(passwordEncoder);
         return builder.build();
     }
 
@@ -139,7 +149,10 @@ public class SecurityConfig {
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
         return source;
     }
 }
