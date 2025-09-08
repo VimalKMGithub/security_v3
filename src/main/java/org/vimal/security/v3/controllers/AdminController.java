@@ -4,7 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.vimal.security.v3.dtos.RoleCreationDto;
+import org.vimal.security.v3.dtos.RoleCreationUpdationDto;
 import org.vimal.security.v3.dtos.UserCreationDto;
 import org.vimal.security.v3.dtos.UserUpdationDto;
 import org.vimal.security.v3.services.AdminService;
@@ -64,7 +64,7 @@ public class AdminController {
 
     @PostMapping("/create/roles")
     @PreAuthorize("@PreAuth.canCreateRoles()")
-    public ResponseEntity<Map<String, Object>> createRoles(@RequestBody Set<RoleCreationDto> dtos,
+    public ResponseEntity<Map<String, Object>> createRoles(@RequestBody Set<RoleCreationUpdationDto> dtos,
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.createRoles(
                 dtos,
@@ -96,7 +96,7 @@ public class AdminController {
 
     @PutMapping("/update/roles")
     @PreAuthorize("@PreAuth.canUpdateRoles()")
-    public ResponseEntity<Map<String, Object>> updateRoles(@RequestBody Set<RoleCreationDto> dtos,
+    public ResponseEntity<Map<String, Object>> updateRoles(@RequestBody Set<RoleCreationUpdationDto> dtos,
                                                            @RequestParam(defaultValue = DEFAULT_TOGGLE) String leniency) throws Exception {
         return adminService.updateRoles(
                 dtos,

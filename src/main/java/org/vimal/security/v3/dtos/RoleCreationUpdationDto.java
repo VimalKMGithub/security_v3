@@ -7,7 +7,7 @@ import java.util.Set;
 
 @Getter
 @Setter
-public class RoleCreationDto {
+public class RoleCreationUpdationDto {
     private String roleName;
     private String description;
     private Set<String> permissions;

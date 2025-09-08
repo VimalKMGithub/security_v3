@@ -1435,7 +1435,7 @@ public class AdminService {
         );
     }
 
-    public ResponseEntity<Map<String, Object>> createRoles(Set<RoleCreationDto> dtos,
+    public ResponseEntity<Map<String, Object>> createRoles(Set<RoleCreationUpdationDto> dtos,
                                                            String leniency) throws Exception {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl creator = getCurrentAuthenticatedUserDetails();
@@ -1490,7 +1490,7 @@ public class AdminService {
             }
             Set<RoleModel> newRoles = new HashSet<>();
             String decryptedCreatorUsername = genericAesStaticEncryptorDecryptor.decrypt(creator.getUsername());
-            for (RoleCreationDto dto : dtos) {
+            for (RoleCreationUpdationDto dto : dtos) {
                 if (alreadyTakenRoleNames.contains(dto.getRoleName())) {
                     continue;
                 }
@@ -1553,7 +1553,7 @@ public class AdminService {
     }
 
     private void validateDtosSizeForRolesCreation(Variant variant,
-                                                  Set<RoleCreationDto> dtos) {
+                                                  Set<RoleCreationUpdationDto> dtos) {
         if (dtos.isEmpty()) {
             throw new SimpleBadRequestException("No roles to create");
         }
@@ -1575,15 +1575,15 @@ public class AdminService {
         }
     }
 
-    private ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationOrUpdation(Set<RoleCreationDto> dtos) {
+    private ValidateInputsForRolesCreationOrUpdationResultDto validateInputsForRolesCreationOrUpdation(Set<RoleCreationUpdationDto> dtos) {
         Set<String> invalidInputs = new HashSet<>();
         Set<String> roleNames = new HashSet<>();
         Set<String> duplicateRoleNamesInDtos = new HashSet<>();
         Set<String> permissions = new HashSet<>();
         dtos.remove(null);
-        Iterator<RoleCreationDto> iterator = dtos.iterator();
+        Iterator<RoleCreationUpdationDto> iterator = dtos.iterator();
         boolean removeFromDtos;
-        RoleCreationDto tempDto;
+        RoleCreationUpdationDto tempDto;
         while (iterator.hasNext()) {
             removeFromDtos = false;
             tempDto = iterator.next();
@@ -1677,7 +1677,7 @@ public class AdminService {
         return resolvedRolesMap;
     }
 
-    private RoleModel toRoleModel(RoleCreationDto dto,
+    private RoleModel toRoleModel(RoleCreationUpdationDto dto,
                                   Set<PermissionModel> permissions,
                                   String creator) throws Exception {
         return RoleModel.builder()
@@ -1996,7 +1996,7 @@ public class AdminService {
         }
     }
 
-    public ResponseEntity<Map<String, Object>> updateRoles(Set<RoleCreationDto> dtos,
+    public ResponseEntity<Map<String, Object>> updateRoles(Set<RoleCreationUpdationDto> dtos,
                                                            String leniency) throws Exception {
         boolean isLenient = validateLeniency(leniency);
         UserDetailsImpl updater = getCurrentAuthenticatedUserDetails();
@@ -2133,7 +2133,7 @@ public class AdminService {
     }
 
     private void validateDtosSizeForRolesUpdation(Variant variant,
-                                                  Set<RoleCreationDto> dtos) {
+                                                  Set<RoleCreationUpdationDto> dtos) {
         if (dtos.isEmpty()) {
             throw new SimpleBadRequestException("No roles to update");
         }
@@ -2155,7 +2155,7 @@ public class AdminService {
         }
     }
 
-    private RolesUpdationWithNewDetailsResultDto updateRolesWithNewDetails(Set<RoleCreationDto> dtos,
+    private RolesUpdationWithNewDetailsResultDto updateRolesWithNewDetails(Set<RoleCreationUpdationDto> dtos,
                                                                            Map<String, RoleModel> roleNameToRoleMap,
                                                                            Map<String, PermissionModel> resolvedPermissionsMap,
                                                                            UserDetailsImpl updater) throws Exception {
@@ -2164,7 +2164,7 @@ public class AdminService {
         String decryptedUpdaterUsername = genericAesStaticEncryptorDecryptor.decrypt(updater.getUsername());
         boolean isUpdated;
         boolean shouldRemoveTokens;
-        for (RoleCreationDto dto : dtos) {
+        for (RoleCreationUpdationDto dto : dtos) {
             RoleModel roleToUpdate = roleNameToRoleMap.get(dto.getRoleName());
             if (roleToUpdate == null) {
                 continue;
