@@ -14,7 +14,7 @@ public class AesRandomUtility {
     private static final String TRANSFORMATION = "AES/GCM/NoPadding";
     private static final int GCM_IV_LENGTH = 12;
     private static final int GCM_TAG_LENGTH = 128;
-    private static final SecureRandom secureRandom = new SecureRandom();
+    private static final ThreadLocal<SecureRandom> SECURE_RANDOM = ThreadLocal.withInitial(SecureRandom::new);
     private final SecretKey secretKey;
 
     public AesRandomUtility(String aesSecret) throws NoSuchAlgorithmException {
@@ -27,7 +27,8 @@ public class AesRandomUtility {
 
     public String encrypt(String data) throws Exception {
         byte[] iv = new byte[GCM_IV_LENGTH];
-        secureRandom.nextBytes(iv);
+        SECURE_RANDOM.get()
+                .nextBytes(iv);
         Cipher cipher = Cipher.getInstance(TRANSFORMATION);
         cipher.init(
                 Cipher.ENCRYPT_MODE,
