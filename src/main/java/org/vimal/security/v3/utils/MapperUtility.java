@@ -30,7 +30,7 @@ public class MapperUtility {
     public UserSummaryToCompanyUsersDto toUserSummaryToCompanyUsersDto(UserModel user) throws Exception {
         UserSummaryToCompanyUsersDto dto = new UserSummaryToCompanyUsersDto();
         mapCommonFields(user, dto);
-        dto.setRealEmail(genericAesStaticEncryptorDecryptor.decrypt(user.getEmail()));
+        dto.setRealEmail(genericAesStaticEncryptorDecryptor.decrypt(user.getRealEmail()));
         dto.setAccountDeleted(user.isAccountDeleted());
         dto.setAccountDeletedAt(user.getAccountDeletedAt());
         dto.setAccountDeletedBy(user.getAccountDeletedBy() == null ? null : genericAesRandomEncryptorDecryptor.decrypt(user.getAccountDeletedBy()));
