@@ -84,7 +84,8 @@ public class CommandLineRunnerImpl implements CommandLineRunner {
         addPermissionsToRoles(rolePermissionsMap);
         Set<String> allRequiredPermissions = new HashSet<>();
         for (Map.Entry<String, Set<String>> entry : rolePermissionsMap.entrySet()) {
-            if (!entry.getValue().isEmpty()) {
+            if (!entry.getValue()
+                    .isEmpty()) {
                 allRequiredPermissions.addAll(entry.getValue());
             }
         }
