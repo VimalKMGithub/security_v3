@@ -6,7 +6,7 @@ public final class OtpUtility {
     private OtpUtility() {
     }
 
-    public static final SecureRandom SECURE_RANDOM = new SecureRandom();
+    private static final ThreadLocal<SecureRandom> SECURE_RANDOM = ThreadLocal.withInitial(SecureRandom::new);
     public static final String DIGITS = "0123456789";
     public static final int DEFAULT_OTP_LENGTH = 6;
 
@@ -20,7 +20,8 @@ public final class OtpUtility {
         }
         char[] otpChars = new char[length];
         for (int i = 0; i < length; i++) {
-            otpChars[i] = DIGITS.charAt(SECURE_RANDOM.nextInt(DIGITS.length()));
+            otpChars[i] = DIGITS.charAt(SECURE_RANDOM.get()
+                    .nextInt(DIGITS.length()));
         }
         return new String(otpChars);
     }
