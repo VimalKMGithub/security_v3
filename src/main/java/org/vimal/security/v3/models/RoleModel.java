@@ -82,8 +82,8 @@ public class RoleModel {
         this.createdAt = Instant.now();
     }
 
-    public void recordUpdation(String updator) {
+    public void recordUpdation(String updater) {
         this.updatedAt = Instant.now();
-        this.updatedBy = updator;
+        this.updatedBy = updater;
     }
 }
