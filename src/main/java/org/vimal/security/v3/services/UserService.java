@@ -280,7 +280,7 @@ public class UserService {
                         generateOtpForForgotPassword(user),
                         OTP
                 );
-                return Map.of("Message", "Otp sent to your email. Please check your email to reset your password");
+                return Map.of("message", "Otp sent to your email. Please check your email to reset your password");
             }
             case AUTHENTICATOR_APP_MFA -> {
                 return Map.of("message", "Please proceed to verify Totp");
