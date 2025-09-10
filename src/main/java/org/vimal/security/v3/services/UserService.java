@@ -598,7 +598,7 @@ public class UserService {
                         dto.getPassword()
                 );
                 emailConfirmationOnSelfPasswordChange(user);
-                return Map.of("message", "Password change successful");
+                return Map.of("message", "Password changed successfully");
             }
             throw new SimpleBadRequestException("Invalid Otp");
         }
@@ -620,7 +620,7 @@ public class UserService {
                 dto.getPassword()
         );
         emailConfirmationOnSelfPasswordChange(user);
-        return Map.of("message", "Password change successful");
+        return Map.of("message", "Password changed successfully");
     }
 
     public Map<String, String> emailChangeRequest(String newEmail) throws Exception {
