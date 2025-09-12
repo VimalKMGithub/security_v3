@@ -947,7 +947,8 @@ public class AdminService {
             Map<String, Object> mapOfErrors = errorsStuffingIfAny(validateInputsForUsersUpdationResult);
             moreErrorsStuffingIfAny(
                     validateInputsForUsersUpdationResult,
-                    mapOfErrors
+                    mapOfErrors,
+                    updater
             );
             if (!isLenient) {
                 if (!mapOfErrors.isEmpty()) {
@@ -1235,7 +1236,8 @@ public class AdminService {
     }
 
     private void moreErrorsStuffingIfAny(ValidateInputsForUsersUpdationResultDto validateInputsForUsersUpdationResult,
-                                         Map<String, Object> mapOfErrors) {
+                                         Map<String, Object> mapOfErrors,
+                                         UserDetailsImpl updater) {
         if (!validateInputsForUsersUpdationResult.getDuplicateOldUsernames()
                 .isEmpty()) {
             mapOfErrors.put("duplicate_old_usernames_in_request", validateInputsForUsersUpdationResult.getDuplicateOldUsernames());
@@ -1243,6 +1245,11 @@ public class AdminService {
         if (!validateInputsForUsersUpdationResult.getInvalidOldUsernames()
                 .isEmpty()) {
             mapOfErrors.put("invalid_old_usernames", validateInputsForUsersUpdationResult.getInvalidOldUsernames());
+        }
+        if (validateInputsForUsersUpdationResult.getEncryptedOldUsernames()
+                .contains(updater.getUsername())) {
+            mapOfErrors.put("cannot_update_own_account_using_this_endpoint", validateInputsForUsersUpdationResult.getEncryptedOldUsernameToOldUsernameMap()
+                    .get(updater.getUsername()));
         }
     }
 
@@ -1301,6 +1308,9 @@ public class AdminService {
         String decryptedUpdaterUsername = genericAesStaticEncryptorDecryptor.decrypt(updater.getUsername());
         for (UserUpdationDto dto : dtos) {
             tempStr = dto.getOldUsername();
+            if (tempStr.equals(decryptedUpdaterUsername)) {
+                continue;
+            }
             UserModel userToUpdate = encryptedOldUsernameToUserMap.get(validateInputsForUsersUpdationResult.getOldUsernameToEncryptedOldUsernameMap()
                     .get(tempStr));
             if (userToUpdate == null) {
