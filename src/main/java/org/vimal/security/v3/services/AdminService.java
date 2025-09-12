@@ -1439,6 +1439,9 @@ public class AdminService {
         if (!notFoundUsersWithOldUsernames.isEmpty()) {
             mapOfErrors.put("users_not_found_with_old_usernames", notFoundUsersWithOldUsernames);
         }
+        if (!restrictedRoles.isEmpty()) {
+            mapOfErrors.put("cannot_update_users_having_roles_higher_or_equal_than_updater", restrictedRoles);
+        }
         return new UsersUpdationWithNewDetailsResultDto(
                 updatedUsers,
                 idsOfUsersWeHaveToRemoveTokens
